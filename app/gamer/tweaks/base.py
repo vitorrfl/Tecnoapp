@@ -35,6 +35,12 @@ class TweakResult:
     message: str = ""
     error: str | None = None
     previous_state: dict[str, Any] = field(default_factory=dict)
+    state_update: dict[str, Any] = field(default_factory=dict)
+    """Extra state produced by apply() that must be persisted for revert().
+
+    Example: a tweak that creates a new power plan stores the new GUID here
+    so the snapshot knows what to delete on revert.
+    """
 
 
 class Tweak(ABC):

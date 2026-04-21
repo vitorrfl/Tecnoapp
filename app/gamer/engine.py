@@ -139,6 +139,12 @@ class GamerEngine:
                 report.applied.append(result)
                 if tweak.requires_reboot:
                     report.reboot_required = True
+                if result.state_update:
+                    for entry in snapshot.tweaks:
+                        if entry.tweak_id == tweak.id:
+                            entry.previous_state.update(result.state_update)
+                            break
+                    self._store.save(snapshot)
             elif result.status == TweakStatus.FAILED:
                 report.failed.append(result)
             else:
