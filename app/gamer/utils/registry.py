@@ -92,6 +92,24 @@ def write_many(entries: list[tuple[str | int, str, str, Any, int]]) -> None:
         write_value(h, p, n, v, t)
 
 
+def enum_subkeys(hive: str | int, path: str) -> list[str]:
+    try:
+        with winreg.OpenKey(_resolve_hive(hive), path, 0, winreg.KEY_READ) as key:
+            names: list[str] = []
+            i = 0
+            while True:
+                try:
+                    names.append(winreg.EnumKey(key, i))
+                    i += 1
+                except OSError:
+                    break
+            return names
+    except FileNotFoundError:
+        return []
+    except OSError:
+        return []
+
+
 def restore_many(snapshots: list[dict[str, Any]]) -> list[str]:
     """Restore a list of snapshots; return list of error messages (empty = success)."""
     errors: list[str] = []
