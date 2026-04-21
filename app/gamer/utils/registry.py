@@ -77,3 +77,27 @@ def restore_value(snapshot: dict[str, Any]) -> None:
         delete_value(hive, path, name)
         return
     write_value(hive, path, name, snapshot["value"], snapshot["type"])
+
+
+# --- batch helpers for tweaks that toggle multiple values ------------------
+
+def snapshot_many(entries: list[tuple[str | int, str, str]]) -> list[dict[str, Any]]:
+    """entries: list of (hive, path, name)."""
+    return [snapshot_value(h, p, n) for (h, p, n) in entries]
+
+
+def write_many(entries: list[tuple[str | int, str, str, Any, int]]) -> None:
+    """entries: list of (hive, path, name, value, reg_type)."""
+    for h, p, n, v, t in entries:
+        write_value(h, p, n, v, t)
+
+
+def restore_many(snapshots: list[dict[str, Any]]) -> list[str]:
+    """Restore a list of snapshots; return list of error messages (empty = success)."""
+    errors: list[str] = []
+    for snap in snapshots:
+        try:
+            restore_value(snap)
+        except OSError as exc:
+            errors.append(f"{snap.get('name')}: {exc}")
+    return errors

@@ -1,4 +1,4 @@
 from .base import Tweak, TweakResult, TweakStatus, Category, RiskLevel
-from . import cpu
+from . import cpu, gpu
 
-__all__ = ["Tweak", "TweakResult", "TweakStatus", "Category", "RiskLevel", "cpu"]
+__all__ = ["Tweak", "TweakResult", "TweakStatus", "Category", "RiskLevel", "cpu", "gpu"]
