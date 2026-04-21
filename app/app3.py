@@ -6,7 +6,23 @@ import ctypes
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QMessageBox,
                              QHBoxLayout, QPushButton, QLabel, QFrame, QGraphicsDropShadowEffect)
 from PySide6.QtGui import QFont, QColor, QCursor, QPainter, QPen
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QThread, Signal
+
+from gamer import build_engine
+from gamer.tweaks import Category
+
+class GamerWorker(QThread):
+    finished = Signal(object, str)
+
+    def __init__(self, engine, action):
+        super().__init__()
+        self.engine = engine
+        self.action = action
+
+    def run(self):
+        report = self.engine.activate() if self.action == "activate" else self.engine.deactivate()
+        self.finished.emit(report, self.action)
+
 
 def is_admin():
     try: return ctypes.windll.shell32.IsUserAnAdmin()
@@ -31,8 +47,10 @@ class TecnoApp(QMainWindow):
         self.bg_dark = "#030407"    
         self.log_file = os.path.join(os.environ.get('TEMP'), 'tecnosup_clean_log.txt')
         
-        self.status_cache = "" 
-        self.auto_clean = False 
+        self.status_cache = ""
+        self.auto_clean = False
+        self.gamer_engine = build_engine()
+        self._gamer_worker = None
 
         self.setStyleSheet(f"""
             QMainWindow {{ background-color: {self.bg_dark}; }}
@@ -219,7 +237,103 @@ class TecnoApp(QMainWindow):
     def show_home(self): self.clear_screen(); lbl = QLabel("SISTEMA PRONTO"); lbl.setFont(QFont("Segoe UI", 28, QFont.Bold)); self.add_neon(lbl, self.primary); self.content_lyt.addWidget(lbl, alignment=Qt.AlignCenter)
     def show_otimizacao(self): self.clear_screen(); self.add_title("OTIMIZAÇÃO"); self.add_status_bar("> Menu pronto.")
     def show_reparos(self): self.clear_screen(); self.add_title("REPAROS"); self.add_status_bar("> Menu pronto.")
-    def show_gamer(self): self.clear_screen(); self.add_title("MODO GAMER", self.secondary); self.add_status_bar("> Boost ativado.")
+    def show_gamer(self):
+        self.clear_screen()
+        self.add_title("MODO GAMER", self.secondary)
+
+        active = self.gamer_engine.is_active()
+        snapshot = self.gamer_engine.active_snapshot() if active else None
+
+        if active and snapshot:
+            status_txt = f"● ATIVO desde {snapshot.created_at}"
+            status_color = self.primary
+        else:
+            status_txt = "● INATIVO"
+            status_color = "#666"
+
+        self.gamer_status = QLabel(status_txt)
+        self.gamer_status.setStyleSheet(
+            f"color: {status_color}; font-family: 'Consolas'; font-size: 13px; font-weight: bold;"
+        )
+        self.content_lyt.addWidget(self.gamer_status, alignment=Qt.AlignCenter)
+        self.content_lyt.addSpacing(15)
+
+        if active:
+            self.add_danger_btn("DESATIVAR MODO GAMER", self.run_gamer_deactivate)
+        else:
+            self.add_action_btn("ATIVAR MODO GAMER", self.run_gamer_activate)
+
+        self.content_lyt.addSpacing(15)
+        grouped = self.gamer_engine.tweaks_by_category()
+        counts = (
+            f"CPU: {len(grouped[Category.CPU])}    "
+            f"GPU: {len(grouped[Category.GPU])}    "
+            f"Sistema: {len(grouped[Category.SYSTEM])}    "
+            f"Rede: {len(grouped[Category.NETWORK])}"
+        )
+        detail = QLabel(counts)
+        detail.setStyleSheet("color: #555; font-family: 'Segoe UI'; font-size: 11px;")
+        self.content_lyt.addWidget(detail, alignment=Qt.AlignCenter)
+
+        self.add_status_bar("> Pronto.")
+
+    def add_danger_btn(self, text, func):
+        b = QPushButton(text); b.setFixedWidth(400)
+        b.setStyleSheet(f"""
+            background-color: {self.danger}; color: white; font-weight: bold;
+            border-radius: 8px; padding: 12px; border: none; font-size: 14px;
+        """)
+        b.clicked.connect(func)
+        self.content_lyt.addWidget(b, alignment=Qt.AlignCenter)
+        self.add_neon(b, self.danger)
+
+    def run_gamer_activate(self):
+        self._run_gamer_task("activate")
+
+    def run_gamer_deactivate(self):
+        self._run_gamer_task("deactivate")
+
+    def _run_gamer_task(self, action):
+        if self._gamer_worker is not None:
+            return
+        self.status_lbl.setText("> Aplicando Modo Gamer... aguarde." if action == "activate" else "> Desativando Modo Gamer...")
+        self.status_lbl.setStyleSheet(f"color: {self.primary}; font-family: 'Consolas'; font-weight: bold;")
+        QApplication.processEvents()
+
+        self._gamer_worker = GamerWorker(self.gamer_engine, action)
+        self._gamer_worker.finished.connect(self._on_gamer_done)
+        self._gamer_worker.start()
+
+    def _on_gamer_done(self, report, action):
+        self._gamer_worker = None
+        verb = "aplicado" if action == "activate" else "desativado"
+        msg = (
+            f"> Modo Gamer {verb}.\n"
+            f"> Aplicados: {len(report.applied)} | Pulados: {len(report.skipped)} | Falhas: {len(report.failed)}"
+        )
+        self.status_cache = msg
+        self.show_gamer()
+        if action == "activate" and report.reboot_required:
+            self.show_reboot_modal(report)
+
+    def show_reboot_modal(self, report):
+        reboot_tweaks = [r.tweak_id for r in report.applied
+                         if self.gamer_engine._tweaks.get(r.tweak_id) and self.gamer_engine._tweaks[r.tweak_id].requires_reboot]
+        m = QMessageBox(self)
+        m.setWindowTitle("Reinicialização recomendada")
+        m.setText("Alguns tweaks exigem reboot para entrar em efeito.")
+        m.setInformativeText(
+            "Para ter ganho completo, reinicie o PC quando for conveniente.\n"
+            "Os tweaks já estão salvos e sobrevivem ao reboot.\n\n"
+            f"Tweaks afetados:\n• " + "\n• ".join(reboot_tweaks)
+        )
+        m.setStandardButtons(QMessageBox.Ok)
+        m.setStyleSheet(
+            "QLabel{color:white; font-family:'Segoe UI';} "
+            "QMessageBox{background:#030407; border:1px solid #0eb3ff;} "
+            "QPushButton{color:white; border:1px solid #0eb3ff; padding:5px; min-width:80px;}"
+        )
+        m.exec()
     def add_title(self, text, color=None): t = QLabel(text); t.setFont(QFont("Segoe UI", 24, QFont.Bold)); t.setStyleSheet(f"color: {color};") if color else None; self.content_lyt.addWidget(t, alignment=Qt.AlignCenter); self.content_lyt.addSpacing(10)
     def add_status_bar(self, msg): self.content_lyt.addSpacing(25); self.status_lbl = QLabel(msg); self.status_lbl.setStyleSheet("color: #444; font-family: 'Consolas';"); self.content_lyt.addWidget(self.status_lbl, alignment=Qt.AlignCenter)
     def add_action_btn(self, text, func): b = QPushButton(text); b.setObjectName("ActionBtn"); b.setFixedWidth(400); b.clicked.connect(func); self.content_lyt.addWidget(b, alignment=Qt.AlignCenter); self.add_neon(b, self.primary)

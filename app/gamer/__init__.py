@@ -1,3 +1,4 @@
-from .engine import GamerEngine
+from .engine import GamerEngine, RunReport
+from .facade import build_engine
 
-__all__ = ["GamerEngine"]
+__all__ = ["GamerEngine", "RunReport", "build_engine"]
