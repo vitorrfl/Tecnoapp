@@ -1,0 +1,264 @@
+import sys
+import os
+import subprocess
+import datetime
+from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
+                             QHBoxLayout, QPushButton, QLabel, QFrame, QGraphicsDropShadowEffect)
+from PySide6.QtGui import QFont, QColor, QCursor, QPainter, QPen
+from PySide6.QtCore import Qt, QTimer
+
+class TecnoApp(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("TECNOAPP OTIMIZAÇÃO - Pro Edition")
+        self.setFixedSize(850, 600)
+
+        # Cores oficiais da sua identidade
+        self.primary = "#0eb3ff"    
+        self.secondary = "#7000ff"  
+        self.bg_dark = "#030407"    
+        self.log_file = "last_clean.txt"
+
+        # CSS Profissional (Mantendo tudo o que já tínhamos)
+        self.setStyleSheet(f"""
+            QMainWindow {{ background-color: {self.bg_dark}; }}
+            #Sidebar {{
+                background-color: rgba(3, 4, 7, 245);
+                border-right: 1px solid rgba(14, 179, 255, 0.1);
+            }}
+            QLabel {{ color: #ffffff; background: transparent; }}
+            
+            QPushButton#MenuBtn {{
+                background: transparent;
+                border: 2px solid {self.primary};
+                color: {self.primary};
+                font-family: 'Segoe UI', sans-serif;
+                font-size: 11px;
+                font-weight: bold;
+                border-radius: 10px;
+                padding: 8px;
+            }}
+            QPushButton#MenuBtn:hover {{ background: {self.primary}; color: black; }}
+            
+            QPushButton#ActionBtn {{
+                background-color: {self.primary};
+                color: black;
+                font-weight: bold;
+                border-radius: 8px;
+                padding: 12px;
+                border: none;
+                font-size: 13px;
+            }}
+            QPushButton#ActionBtn:hover {{ background-color: white; }}
+
+            QPushButton#GamerNav {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {self.primary}, stop:1 {self.secondary});
+                color: white;
+                font-weight: bold;
+                border-radius: 15px;
+                padding: 10px;
+                border: 1px solid transparent;
+            }}
+            QPushButton#ExitBtn {{
+                background: transparent;
+                border: 1px solid #ff4b4b;
+                color: #ff4b4b;
+                border-radius: 8px;
+                font-weight: bold;
+            }}
+            QPushButton#ExitBtn:hover {{ background: #ff4b4b; color: white; }}
+        """)
+
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        main_layout = QHBoxLayout(central_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+
+        # --- SIDEBAR ---
+        sidebar = QFrame(); sidebar.setObjectName("Sidebar"); sidebar.setFixedWidth(220)
+        side_lyt = QVBoxLayout(sidebar); side_lyt.setContentsMargins(15, 30, 15, 30); side_lyt.setSpacing(10)
+        
+        logo = QLabel("TECNOSUP"); logo.setFont(QFont("Segoe UI", 22, QFont.Bold))
+        self.add_neon(logo, self.primary); side_lyt.addWidget(logo, alignment=Qt.AlignCenter)
+
+        sub = QLabel("SOLUÇÕES DIGITAIS"); sub.setFont(QFont("Segoe UI", 8, QFont.Bold))
+        sub.setStyleSheet(f"color: {self.primary}; letter-spacing: 2px;")
+        side_lyt.addWidget(sub, alignment=Qt.AlignCenter)
+
+        side_lyt.addSpacing(20)
+        side_lyt.addWidget(self.create_menu_btn("🧹 LIMPEZA", self.show_limpeza))
+        side_lyt.addWidget(self.create_menu_btn("⚡ OTIMIZAÇÃO", self.show_otimizacao))
+        side_lyt.addWidget(self.create_menu_btn("🔧 REPAROS", self.show_reparos))
+        
+        self.btn_gamer_nav = QPushButton("🎮 MODO GAMER")
+        self.btn_gamer_nav.setObjectName("GamerNav")
+        self.btn_gamer_nav.setCursor(QCursor(Qt.PointingHandCursor))
+        self.btn_gamer_nav.clicked.connect(self.show_gamer)
+        self.add_neon(self.btn_gamer_nav, self.secondary)
+        side_lyt.addWidget(self.btn_gamer_nav)
+
+        side_lyt.addStretch()
+        btn_sair = QPushButton("SAIR")
+        btn_sair.setObjectName("ExitBtn")
+        btn_sair.setFixedSize(180, 35)
+        btn_sair.clicked.connect(self.finalizar_app)
+        side_lyt.addWidget(btn_sair, alignment=Qt.AlignCenter)
+
+        main_layout.addWidget(sidebar)
+
+        # --- ÁREA CENTRAL ---
+        self.content_container = QWidget()
+        self.content_container.paintEvent = self.paint_grid 
+        self.content_lyt = QVBoxLayout(self.content_container)
+        self.content_lyt.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(self.content_container)
+
+        self.show_home()
+
+    # --- MOTOR DE LIMPEZA RÁPIDA (O que estamos mexendo agora) ---
+    def get_size(self, start_path):
+        total = 0
+        try:
+            for dirpath, dirnames, filenames in os.walk(start_path):
+                for f in filenames:
+                    fp = os.path.join(dirpath, f)
+                    if os.path.exists(fp): total += os.path.getsize(fp)
+        except: pass
+        return total
+
+    def format_bytes(self, size):
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if size < 1024: return f"{size:.2f} {unit}"
+            size /= 1024
+        return f"{size:.2f} TB"
+
+    def run_clean_auto(self):
+        pastas = [os.environ.get('TEMP'), 'C:/Windows/Temp', 'C:/Windows/Prefetch']
+        t_inicial = sum(self.get_size(p) for p in pastas if p and os.path.exists(p))
+        
+        if t_inicial < 1024 * 1024:
+            self.status_lbl.setText("> Sistema já limpo recentemente.")
+            self.status_lbl.setStyleSheet("color: #ffbd2e; font-family: 'Consolas';")
+            return
+
+        self.status_lbl.setText("> Iniciando limpeza de arquivos...")
+        QApplication.processEvents()
+        
+        cmd = 'del /s /f /q %temp%\\*.* & del /s /f /q C:\\Windows\\Temp\\*.* & del /s /f /q C:\\Windows\\Prefetch\\*.* & ipconfig /flushdns'
+        subprocess.run(f'start cmd /c "echo TECNOSUP: LIMPANDO DISCO... & {cmd} & exit"', shell=True)
+
+        QTimer.singleShot(2000, lambda: self.finish_clean(t_inicial))
+
+    def finish_clean(self, t_inicial):
+        pastas = [os.environ.get('TEMP'), 'C:/Windows/Temp', 'C:/Windows/Prefetch']
+        t_final = sum(self.get_size(p) for p in pastas if p and os.path.exists(p))
+        limpo = t_inicial - t_final
+        agora = datetime.datetime.now().strftime("%d/%m/%Y às %H:%M:%S")
+        with open(self.log_file, "w") as f: f.write(agora)
+        
+        self.status_lbl.setText(f"> SUCESSO: {self.format_bytes(limpo)} removidos!\n> Última vez: {agora}")
+        self.status_lbl.setStyleSheet(f"color: {self.primary}; font-family: 'Consolas'; font-weight: bold;")
+
+    # --- TELAS ---
+    def show_limpeza(self):
+        self.clear_screen()
+        self.add_title("MÓDULO DE LIMPEZA")
+        
+        desc = QLabel("LIMPEZA RÁPIDA: Remove temporários, cache de sistema, prefetch e reseta DNS.")
+        desc.setStyleSheet("color: #888; margin-bottom: 15px;")
+        self.content_lyt.addWidget(desc, alignment=Qt.AlignCenter)
+
+        self.add_action_btn("EXECUTAR LIMPEZA RÁPIDA", self.run_clean_auto)
+        self.add_action_btn("LIMPEZA PROFUNDA (Sagerun)", lambda: subprocess.Popen('cleanmgr /sagerun:65535', shell=True))
+        
+        log = "Nunca"
+        if os.path.exists(self.log_file):
+            with open(self.log_file, "r") as f: log = f.read()
+        
+        self.add_status_bar(f"> Última limpeza: {log}")
+
+    def show_otimizacao(self):
+        self.clear_screen()
+        self.add_title("OTIMIZAÇÃO")
+        opcoes = [
+            ("Plano de Energia Máxima", 'powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 & powercfg /setactive e9a42b02-d5df-448d-aa00-03f14749eb61'),
+            ("Aceleração de Disco (Defrag)", 'defrag C: /O /U'),
+            ("Otimizar Conexão TCP", 'netsh int tcp set global autotuninglevel=normal'),
+            ("Desativar Telemetria", 'sc stop DiagTrack & sc config DiagTrack start= disabled'),
+            ("Desativar Hibernação", 'powercfg -h off')
+        ]
+        for t, c in opcoes: self.add_action_btn(t, lambda cmd=c: subprocess.run(cmd, shell=True, creationflags=subprocess.CREATE_NO_WINDOW))
+        self.add_status_bar()
+
+    def show_reparos(self):
+        self.clear_screen()
+        self.add_title("CENTRAL DE REPAROS")
+        reparos = [
+            ("Reparar Rede e Internet", 'netsh winsock reset & netsh int ip reset & ipconfig /flushdns'),
+            ("Destravar Windows Update", 'net stop wuauserv & net start wuauserv'),
+            ("Reparar Microsoft Store", 'wsreset.exe'),
+            ("Corrigir Impressora", 'net stop spooler & del /Q /S C:/Windows/System32/spool/PRINTERS/*.* & net start spooler'),
+            ("Reiniciar Explorer", 'taskkill /f /im explorer.exe & start explorer.exe'),
+            ("Correção Total (SFC / DISM)", 'start cmd /c "sfc /scannow & DISM /Online /Cleanup-Image /RestoreHealth & pause"')
+        ]
+        for t, c in reparos: self.add_action_btn(t, lambda cmd=c: subprocess.run(cmd, shell=True, creationflags=subprocess.CREATE_NO_WINDOW))
+        self.add_status_bar()
+
+    def show_gamer(self):
+        self.clear_screen()
+        self.add_title("MODO GAMER EXTREMO", self.secondary)
+        self.add_action_btn("LIGAR OTIMIZAÇÃO INVISÍVEL", lambda: subprocess.run('reg add "HKCU\\System\\GameConfigStore" /v "GameDVR_Enabled" /t REG_DWORD /d 0 /f', shell=True))
+        self.add_action_btn("DESEMPENHO VISUAL (Instantâneo)", lambda: subprocess.run('reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\VisualEffects" /v "VisualFXSetting" /t REG_DWORD /d 2 /f', shell=True))
+        self.add_action_btn("RESTAURAR PADRÃO", lambda: subprocess.run('reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\VisualEffects" /v "VisualFXSetting" /t REG_DWORD /d 0 /f', shell=True))
+        self.add_status_bar()
+
+    # --- UTILITÁRIOS ---
+    def finalizar_app(self):
+        self.clear_screen()
+        lbl = QLabel("Obrigado por usar TECNOSUP!\nAguarde..."); lbl.setFont(QFont("Segoe UI", 18))
+        self.content_lyt.addWidget(lbl, alignment=Qt.AlignCenter)
+        QTimer.singleShot(1500, self.close)
+
+    def add_action_btn(self, text, func):
+        btn = QPushButton(text); btn.setObjectName("ActionBtn"); btn.setFixedWidth(350)
+        btn.clicked.connect(func); self.content_lyt.addWidget(btn, alignment=Qt.AlignCenter)
+
+    def add_title(self, text, color=None):
+        title = QLabel(text); title.setFont(QFont("Segoe UI", 22, QFont.Bold))
+        if color: title.setStyleSheet(f"color: {color};")
+        self.content_lyt.addWidget(title, alignment=Qt.AlignCenter); self.content_lyt.addSpacing(20)
+
+    def add_status_bar(self, msg="> Aguardando comando..."):
+        self.content_lyt.addSpacing(20); self.status_lbl = QLabel(msg)
+        self.status_lbl.setStyleSheet("color: #666; font-family: 'Consolas';")
+        self.content_lyt.addWidget(self.status_lbl, alignment=Qt.AlignCenter)
+
+    def paint_grid(self, event):
+        painter = QPainter(self.content_container)
+        pen = QPen(QColor(14, 179, 255, 12)); painter.setPen(pen)
+        for x in range(0, self.content_container.width(), 40): painter.drawLine(x, 0, x, self.content_container.height())
+        for y in range(0, self.content_container.height(), 40): painter.drawLine(0, y, self.content_container.width(), y)
+
+    def add_neon(self, widget, color):
+        glow = QGraphicsDropShadowEffect()
+        glow.setBlurRadius(20); glow.setColor(QColor(color)); glow.setOffset(0)
+        widget.setGraphicsEffect(glow)
+
+    def create_menu_btn(self, text, func):
+        btn = QPushButton(text); btn.setObjectName("MenuBtn"); btn.setFixedSize(190, 40)
+        btn.setCursor(QCursor(Qt.PointingHandCursor)); btn.clicked.connect(func)
+        return btn
+
+    def clear_screen(self):
+        while self.content_lyt.count():
+            item = self.content_lyt.takeAt(0); 
+            if item.widget(): item.widget().deleteLater()
+
+    def show_home(self):
+        self.clear_screen(); lbl = QLabel("SISTEMA PRONTO"); lbl.setFont(QFont("Segoe UI", 28, QFont.Bold))
+        self.add_neon(lbl, self.primary); self.content_lyt.addWidget(lbl, alignment=Qt.AlignCenter)
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = TecnoApp(); window.show()
+    sys.exit(app.exec())
