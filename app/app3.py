@@ -4,23 +4,28 @@ import subprocess
 import datetime
 import ctypes
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QMessageBox,
-                             QHBoxLayout, QPushButton, QLabel, QFrame, QGraphicsDropShadowEffect)
+                             QHBoxLayout, QPushButton, QLabel, QFrame, QGraphicsDropShadowEffect,
+                             QCheckBox, QScrollArea)
 from PySide6.QtGui import QFont, QColor, QCursor, QPainter, QPen
 from PySide6.QtCore import Qt, QTimer, QThread, Signal
 
-from gamer import build_engine
+from gamer import build_engine, load_enabled_optins, save_enabled_optins
 from gamer.tweaks import Category
 
 class GamerWorker(QThread):
     finished = Signal(object, str)
 
-    def __init__(self, engine, action):
+    def __init__(self, engine, action, enabled_optins=None):
         super().__init__()
         self.engine = engine
         self.action = action
+        self.enabled_optins = enabled_optins or set()
 
     def run(self):
-        report = self.engine.activate() if self.action == "activate" else self.engine.deactivate()
+        if self.action == "activate":
+            report = self.engine.activate(enabled_optins=self.enabled_optins)
+        else:
+            report = self.engine.deactivate()
         self.finished.emit(report, self.action)
 
 
@@ -263,6 +268,18 @@ class TecnoApp(QMainWindow):
         else:
             self.add_action_btn("ATIVAR MODO GAMER", self.run_gamer_activate)
 
+        self.content_lyt.addSpacing(10)
+
+        adv = QPushButton("Avançado (granular)")
+        adv.setFixedWidth(260)
+        adv.setCursor(QCursor(Qt.PointingHandCursor))
+        adv.setStyleSheet(
+            "background:transparent; color:#7000ff; border:1px solid #7000ff;"
+            "border-radius:6px; padding:6px; font-family:'Segoe UI'; font-size:11px;"
+        )
+        adv.clicked.connect(self.show_gamer_advanced)
+        self.content_lyt.addWidget(adv, alignment=Qt.AlignCenter)
+
         self.content_lyt.addSpacing(15)
         grouped = self.gamer_engine.tweaks_by_category()
         counts = (
@@ -275,7 +292,144 @@ class TecnoApp(QMainWindow):
         detail.setStyleSheet("color: #555; font-family: 'Segoe UI'; font-size: 11px;")
         self.content_lyt.addWidget(detail, alignment=Qt.AlignCenter)
 
+        enabled = load_enabled_optins()
+        if enabled:
+            opt_lbl = QLabel(f"opt-in ativos: {', '.join(sorted(enabled))}")
+            opt_lbl.setStyleSheet("color: #7000ff; font-family: 'Consolas'; font-size: 10px;")
+            self.content_lyt.addWidget(opt_lbl, alignment=Qt.AlignCenter)
+
         self.add_status_bar("> Pronto.")
+
+    def show_gamer_advanced(self):
+        self.clear_screen()
+        self.add_title("MODO GAMER — AVANÇADO", self.secondary)
+
+        intro = QLabel(
+            "Escolha quais tweaks rodam no one-click.\n"
+            "Os essenciais sempre rodam. Os marcados como opt-in só rodam se você habilitar aqui."
+        )
+        intro.setAlignment(Qt.AlignCenter)
+        intro.setWordWrap(True)
+        intro.setStyleSheet("color:#aaa; font-family:'Segoe UI'; font-size:12px;")
+        self.content_lyt.addWidget(intro)
+        self.content_lyt.addSpacing(10)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea{border:none; background:transparent;}")
+        inner = QWidget()
+        inner_lyt = QVBoxLayout(inner)
+        inner_lyt.setContentsMargins(10, 0, 10, 0)
+        inner_lyt.setSpacing(8)
+
+        enabled = load_enabled_optins()
+        self._advanced_checks = {}
+
+        grouped = self.gamer_engine.tweaks_by_category()
+        cat_labels = {
+            Category.CPU: "CPU",
+            Category.GPU: "GPU",
+            Category.SYSTEM: "Sistema",
+            Category.NETWORK: "Rede",
+        }
+        for cat, tweaks in grouped.items():
+            if not tweaks:
+                continue
+            header = QLabel(cat_labels[cat])
+            header.setStyleSheet(
+                f"color:{self.primary}; font-family:'Consolas'; font-weight:bold; font-size:12px;"
+            )
+            inner_lyt.addWidget(header)
+            for tw in tweaks:
+                row = self._build_advanced_row(tw, tw.id in enabled)
+                inner_lyt.addWidget(row)
+            inner_lyt.addSpacing(6)
+
+        inner_lyt.addStretch(1)
+        scroll.setWidget(inner)
+        self.content_lyt.addWidget(scroll, stretch=1)
+
+        btn_row = QHBoxLayout()
+        back = QPushButton("← Voltar")
+        back.setFixedWidth(120)
+        back.setStyleSheet(
+            "background:transparent; color:#888; border:1px solid #444;"
+            "border-radius:6px; padding:8px; font-family:'Segoe UI';"
+        )
+        back.clicked.connect(self.show_gamer)
+        save = QPushButton("Salvar preferências")
+        save.setFixedWidth(200)
+        save.setStyleSheet(
+            f"background:{self.primary}; color:#030407; border:none; border-radius:6px;"
+            "padding:8px; font-family:'Segoe UI'; font-weight:bold;"
+        )
+        save.clicked.connect(self._save_advanced_prefs)
+        btn_row.addStretch(1)
+        btn_row.addWidget(back)
+        btn_row.addSpacing(10)
+        btn_row.addWidget(save)
+        btn_row.addStretch(1)
+        self.content_lyt.addLayout(btn_row)
+
+        self.add_status_bar("> Ajustes não aplicam imediatamente — salvar e ativar o Modo Gamer.")
+
+    def _build_advanced_row(self, tweak, checked):
+        row = QFrame()
+        row.setStyleSheet(
+            "QFrame{background:#0a0d14; border:1px solid #1a1f2b; border-radius:6px;}"
+        )
+        lyt = QVBoxLayout(row)
+        lyt.setContentsMargins(10, 8, 10, 8)
+        lyt.setSpacing(2)
+
+        top = QHBoxLayout()
+        top.setContentsMargins(0, 0, 0, 0)
+        cb = QCheckBox(tweak.label)
+        cb.setStyleSheet(
+            "QCheckBox{color:white; font-family:'Segoe UI'; font-size:12px;}"
+            "QCheckBox::indicator{width:14px; height:14px;}"
+        )
+        if tweak.opt_in:
+            cb.setChecked(checked)
+            cb.setEnabled(True)
+            self._advanced_checks[tweak.id] = cb
+        else:
+            cb.setChecked(True)
+            cb.setEnabled(False)
+            cb.setToolTip("Tweak essencial — sempre ativo no one-click")
+        top.addWidget(cb)
+        top.addStretch(1)
+
+        tag_parts = [tweak.risk.value.upper()]
+        if tweak.requires_reboot:
+            tag_parts.append("REBOOT")
+        if tweak.opt_in:
+            tag_parts.append("OPT-IN")
+        tag = QLabel(" · ".join(tag_parts))
+        color = {"low": "#4caf50", "medium": "#ffb300", "high": "#ff4b4b"}.get(tweak.risk.value, "#888")
+        tag.setStyleSheet(f"color:{color}; font-family:'Consolas'; font-size:10px;")
+        top.addWidget(tag)
+        lyt.addLayout(top)
+
+        if tweak.description:
+            desc = QLabel(tweak.description)
+            desc.setWordWrap(True)
+            desc.setStyleSheet("color:#888; font-family:'Segoe UI'; font-size:10px;")
+            lyt.addWidget(desc)
+
+        if tweak.warning:
+            warn = QLabel("⚠ " + tweak.warning)
+            warn.setWordWrap(True)
+            warn.setStyleSheet("color:#ff8a4b; font-family:'Segoe UI'; font-size:10px;")
+            lyt.addWidget(warn)
+
+        return row
+
+    def _save_advanced_prefs(self):
+        selected = {tid for tid, cb in self._advanced_checks.items() if cb.isChecked()}
+        save_enabled_optins(selected)
+        self.status_cache = f"> Preferências salvas ({len(selected)} opt-in ativos)."
+        self.show_gamer()
 
     def add_danger_btn(self, text, func):
         b = QPushButton(text); b.setFixedWidth(400)
@@ -300,7 +454,8 @@ class TecnoApp(QMainWindow):
         self.status_lbl.setStyleSheet(f"color: {self.primary}; font-family: 'Consolas'; font-weight: bold;")
         QApplication.processEvents()
 
-        self._gamer_worker = GamerWorker(self.gamer_engine, action)
+        optins = load_enabled_optins() if action == "activate" else set()
+        self._gamer_worker = GamerWorker(self.gamer_engine, action, enabled_optins=optins)
         self._gamer_worker.finished.connect(self._on_gamer_done)
         self._gamer_worker.start()
 
