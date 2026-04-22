@@ -129,13 +129,16 @@ class CleanWorker(QThread):
          [], ["Clear-RecycleBin -Force -ErrorAction SilentlyContinue"]),
         ("thumbnail_cache", "Cache de miniaturas",
          ['del /f /q "%LocalAppData%\\Microsoft\\Windows\\Explorer\\thumbcache_*.db"'], []),
+        # Sem parar o serviço — Remove-Item tenta deletar o que não estiver bloqueado
         ("update_cache",    "Cache do Windows Update",
-         ["net stop wuauserv 2>nul",
-          'del /s /f /q "C:\\Windows\\SoftwareDistribution\\Download\\*.*"',
-          "net start wuauserv 2>nul"], []),
+         [], ["Get-ChildItem 'C:\\Windows\\SoftwareDistribution\\Download' "
+              "-ErrorAction SilentlyContinue | "
+              "Remove-Item -Force -Recurse -ErrorAction SilentlyContinue"]),
+        # Security omitido: requer SeAuditPrivilege além de admin
         ("event_logs",      "Logs de eventos",
-         [], ['wevtutil cl "System" 2>$null', 'wevtutil cl "Application" 2>$null',
-              'wevtutil cl "Setup" 2>$null', 'wevtutil cl "Security" 2>$null']),
+         [], ['wevtutil cl "System" 2>$null',
+              'wevtutil cl "Application" 2>$null',
+              'wevtutil cl "Setup" 2>$null']),
         ("minidumps",       "Relatórios de travamento",
          ['del /s /f /q "C:\\Windows\\Minidump\\*.*"'], []),
     ]
@@ -157,18 +160,23 @@ class CleanWorker(QThread):
             if step_id not in self.selected_ids:
                 continue
             before = self._free_bytes()
-            if shell_cmds:
-                subprocess.run(
-                    " & ".join(shell_cmds),
-                    shell=True,
-                    creationflags=subprocess.CREATE_NO_WINDOW,
-                )
-            if ps_cmds:
-                subprocess.run(
-                    ["powershell", "-NoProfile", "-NonInteractive", "-Command",
-                     "; ".join(ps_cmds)],
-                    creationflags=subprocess.CREATE_NO_WINDOW,
-                )
+            try:
+                if shell_cmds:
+                    subprocess.run(
+                        " & ".join(shell_cmds),
+                        shell=True,
+                        creationflags=subprocess.CREATE_NO_WINDOW,
+                        timeout=120,
+                    )
+                if ps_cmds:
+                    subprocess.run(
+                        ["powershell", "-NoProfile", "-NonInteractive", "-Command",
+                         "; ".join(ps_cmds)],
+                        creationflags=subprocess.CREATE_NO_WINDOW,
+                        timeout=120,
+                    )
+            except Exception:
+                pass
             self.step_done.emit(label, max(0, self._free_bytes() - before))
         self.finished.emit(max(0, self._free_bytes() - space_before))
 
