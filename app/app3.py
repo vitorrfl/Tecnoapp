@@ -12,6 +12,90 @@ from PySide6.QtCore import Qt, QTimer, QThread, Signal
 from gamer import build_engine, load_enabled_optins, save_enabled_optins
 from gamer.tweaks import Category
 
+_CLEAN_CATEGORIES = [
+    {
+        "id": "temp_user",
+        "label": "Temporários do Usuário (%TEMP%)",
+        "desc": "Arquivos criados por programas durante o uso — jogos, editores, browsers. "
+                "Nunca são reusados após a execução.",
+        "impact": "~100 MB – 2 GB",
+        "default": True,
+        "warning": "",
+    },
+    {
+        "id": "temp_windows",
+        "label": "Temporários do Windows",
+        "desc": "Arquivos criados pelo sistema operacional para operações internas. "
+                "Acumulam após instalações e atualizações.",
+        "impact": "~50 MB – 500 MB",
+        "default": True,
+        "warning": "",
+    },
+    {
+        "id": "prefetch",
+        "label": "Prefetch do Windows",
+        "desc": "Cache que acelera a abertura de programas. Após limpar, a primeira "
+                "abertura de cada programa fica levemente mais lenta — isso é normal.",
+        "impact": "~20 MB – 200 MB",
+        "default": True,
+        "warning": "",
+    },
+    {
+        "id": "dns_cache",
+        "label": "Cache DNS (Endereços de Sites)",
+        "desc": "Tabela local de endereços de sites visitados. Limpar resolve problemas "
+                "de conexão e sites que não abrem corretamente.",
+        "impact": "Desprezível",
+        "default": True,
+        "warning": "",
+    },
+    {
+        "id": "recycle_bin",
+        "label": "Lixeira",
+        "desc": "Arquivos que você deletou mas estão reservados na Lixeira. "
+                "Esvaziar é permanente.",
+        "impact": "Varia (pode ser GBs)",
+        "default": True,
+        "warning": "Não é possível recuperar arquivos após esvaziar.",
+    },
+    {
+        "id": "thumbnail_cache",
+        "label": "Cache de Miniaturas (Fotos/Vídeos)",
+        "desc": "Pré-visualizações de imagens criadas pelo Windows Explorer. "
+                "São recriadas automaticamente na próxima abertura da pasta.",
+        "impact": "~50 MB – 300 MB",
+        "default": True,
+        "warning": "",
+    },
+    {
+        "id": "update_cache",
+        "label": "Cache do Windows Update",
+        "desc": "Arquivos usados para instalar atualizações já concluídas. "
+                "O Windows baixa novamente se precisar reinstalar.",
+        "impact": "~200 MB – 5 GB",
+        "default": False,
+        "warning": "O Windows pode baixar esses arquivos novamente automaticamente se precisar.",
+    },
+    {
+        "id": "event_logs",
+        "label": "Logs de Eventos do Windows",
+        "desc": "Histórico de atividades, erros e avisos do sistema. "
+                "Técnicos usam para diagnosticar problemas.",
+        "impact": "~10 MB – 100 MB",
+        "default": False,
+        "warning": "Apaga o histórico de erros — pode dificultar diagnóstico de problemas futuros.",
+    },
+    {
+        "id": "minidumps",
+        "label": "Relatórios de Travamento (Minidumps)",
+        "desc": "Arquivos gerados automaticamente quando o Windows ou um programa trava. "
+                "Técnicos usam esses arquivos para descobrir a causa do crash.",
+        "impact": "~10 MB – 100 MB",
+        "default": False,
+        "warning": "Remove informações úteis para diagnosticar travamentos e BSODs futuros.",
+    },
+]
+
 class GamerWorker(QThread):
     finished = Signal(object, str)
 
@@ -53,7 +137,7 @@ class TecnoApp(QMainWindow):
         self.log_file = os.path.join(os.environ.get('TEMP'), 'tecnosup_clean_log.txt')
         
         self.status_cache = ""
-        self.auto_clean = False
+        self._clean_checkboxes: dict = {}
         self.gamer_engine = build_engine()
         self._gamer_worker = None
 
@@ -142,55 +226,51 @@ class TecnoApp(QMainWindow):
             return "cleanmgr.exe" in output.lower()
         except: return False
 
-    def toggle_mode(self):
-        self.auto_clean = not self.auto_clean
-        self.update_toggle_style()
+    def run_clean_process(self, selected_ids=None):
+        if selected_ids is None:
+            selected_ids = {c["id"] for c in _CLEAN_CATEGORIES if c["default"]}
 
-    def update_toggle_style(self):
-        txt = "LIMPEZA AUTOMÁTICA: ON" if self.auto_clean else "LIMPEZA AUTOMÁTICA: OFF"
-        color = self.primary if self.auto_clean else self.danger
-        self.btn_sw.setText(txt)
-        self.btn_sw.setStyleSheet(f"""
-            background: rgba(255, 255, 255, 0.03); 
-            border: 1px solid {color}; 
-            color: {color};
-            font-size: 10px; font-weight: bold; border-radius: 6px; padding: 8px;
-        """)
-        self.add_neon(self.btn_sw, color)
-
-    def help_popup(self):
-        m = QMessageBox(self)
-        m.setWindowTitle("Explicação do Checklist")
-        m.setText("O QUE CADA CAIXA DO WINDOWS REMOVE:")
-        m.setInformativeText(
-            "• Limpeza do Windows Update: Exclui versões antigas de arquivos de sistema (GBs liberados).\n"
-            "• Antivírus Microsoft Defender: Arquivos temporários não críticos da proteção.\n"
-            "• Arquivos de Programas Baixados: Controles ActiveX e Java da web.\n"
-            "• Arquivos de Internet Temporários: Cache de sites para navegação mais rápida.\n"
-            "• Cache do Sombreador DirectX: Arquivos de aceleração gráfica (jogos).\n"
-            "• Entrega de Otimização: Restos de atualizações enviadas a outros PCs da rede.\n"
-            "• Lixeira: Esvazia todos os arquivos que você deletou manualment.\n"
-            "• Arquivos Temporários: Dados criados por aplicativos que não foram removidos."
-        )
-        m.setStyleSheet("QLabel{color:white; font-family:'Segoe UI';} QMessageBox{background:#030407; border:1px solid #0eb3ff;} QPushButton{color:white; border:1px solid #0eb3ff; padding:5px; min-width:80px;}")
-        m.exec()
-
-    def run_clean_process(self):
         self.space_before = self.get_free_space()
-        
-        if self.auto_clean:
-            self.status_lbl.setText("> Efetuando limpeza automática...")
-            QApplication.processEvents()
-            cmd = 'del /s /f /q %temp%\\*.* & del /s /f /q C:\\Windows\\Temp\\*.* & del /s /f /q C:\\Windows\\Prefetch\\*.* & ipconfig /flushdns'
-            subprocess.run(cmd, shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
-            self.finish_cleaning_logic()
-        else:
-            self.status_lbl.setText("> Selecione os arquivos e aguarde a conclusão...")
-            self.status_lbl.setStyleSheet(f"color: {self.primary}; font-weight: bold;")
-            QApplication.processEvents()
-            subprocess.Popen('cleanmgr /d C:', shell=True)
-            self.monitor_timer = QTimer(); self.monitor_timer.timeout.connect(self.check_clean_status)
-            self.monitor_timer.start(1000)
+        self.status_lbl.setText("> Efetuando limpeza...")
+        self.status_lbl.setStyleSheet(f"color: {self.primary}; font-weight: bold;")
+        QApplication.processEvents()
+
+        shell_cmds = []
+        ps_cmds = []
+
+        if "temp_user" in selected_ids:
+            shell_cmds.append('del /s /f /q "%TEMP%\\*.*"')
+        if "temp_windows" in selected_ids:
+            shell_cmds.append('del /s /f /q "C:\\Windows\\Temp\\*.*"')
+        if "prefetch" in selected_ids:
+            shell_cmds.append('del /s /f /q "C:\\Windows\\Prefetch\\*.*"')
+        if "dns_cache" in selected_ids:
+            shell_cmds.append("ipconfig /flushdns")
+        if "recycle_bin" in selected_ids:
+            ps_cmds.append("Clear-RecycleBin -Force -ErrorAction SilentlyContinue")
+        if "thumbnail_cache" in selected_ids:
+            shell_cmds.append('del /f /q "%LocalAppData%\\Microsoft\\Windows\\Explorer\\thumbcache_*.db"')
+        if "update_cache" in selected_ids:
+            shell_cmds.extend([
+                "net stop wuauserv 2>nul",
+                'del /s /f /q "C:\\Windows\\SoftwareDistribution\\Download\\*.*"',
+                "net start wuauserv 2>nul",
+            ])
+        if "event_logs" in selected_ids:
+            for ln in ["System", "Application", "Setup", "Security"]:
+                ps_cmds.append(f'wevtutil cl "{ln}" 2>$null')
+        if "minidumps" in selected_ids:
+            shell_cmds.append('del /s /f /q "C:\\Windows\\Minidump\\*.*"')
+
+        if shell_cmds:
+            subprocess.run(" & ".join(shell_cmds), shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
+        if ps_cmds:
+            subprocess.run(
+                ["powershell", "-NoProfile", "-NonInteractive", "-Command", "; ".join(ps_cmds)],
+                creationflags=subprocess.CREATE_NO_WINDOW,
+            )
+
+        self.finish_cleaning_logic()
 
     def check_clean_status(self):
         if not self.is_cleanmgr_running():
@@ -216,21 +296,24 @@ class TecnoApp(QMainWindow):
             self.status_lbl.setStyleSheet("color: #ffbd2e; font-family: 'Consolas'; font-weight: bold; line-height: 150%;")
 
     def show_limpeza(self):
-        self.clear_screen(); self.add_title("MÓDULO DE LIMPEZA")
-        desc = QLabel("Engenharia oficial Windows para máxima segurança."); desc.setStyleSheet("color: #444; margin-bottom: 25px;")
+        self.clear_screen()
+        self.add_title("MÓDULO DE LIMPEZA")
+        desc = QLabel("Limpeza segura com ferramentas nativas do Windows.")
+        desc.setStyleSheet("color: #444; margin-bottom: 25px;")
         self.content_lyt.addWidget(desc, alignment=Qt.AlignCenter)
-        self.add_action_btn("INICIAR LIMPEZA SEGURA", self.run_clean_process)
-        
-        opt_lyt = QHBoxLayout(); opt_lyt.addStretch()
-        self.btn_sw = QPushButton(); self.btn_sw.setObjectName("ToggleBtn"); self.btn_sw.setFixedWidth(220)
-        self.btn_sw.clicked.connect(self.toggle_mode)
-        self.update_toggle_style()
-        opt_lyt.addWidget(self.btn_sw)
-        
-        btn_h = QPushButton("ℹ"); btn_h.setFixedSize(30, 30); btn_h.setObjectName("InfoBtn"); btn_h.clicked.connect(self.help_popup)
-        self.add_neon(btn_h, self.primary); opt_lyt.addWidget(btn_h); opt_lyt.addStretch()
-        self.content_lyt.addLayout(opt_lyt)
-        
+
+        self.add_action_btn("LIMPEZA RÁPIDA", self.run_clean_process)
+
+        btn_adv = QPushButton("CONFIGURAR LIMPEZA")
+        btn_adv.setFixedWidth(400)
+        btn_adv.setFixedHeight(42)
+        btn_adv.setStyleSheet(
+            f"background: transparent; border: 1px solid {self.primary}; color: {self.primary};"
+            "font-weight: bold; border-radius: 8px; font-size: 13px;"
+        )
+        btn_adv.clicked.connect(self.show_limpeza_avancada)
+        self.content_lyt.addWidget(btn_adv, alignment=Qt.AlignCenter)
+
         log = "Nunca"
         if os.path.exists(self.log_file):
             try:
@@ -238,6 +321,122 @@ class TecnoApp(QMainWindow):
             except: pass
         self.add_status_bar(self.status_cache if self.status_cache else f"> Histórico: {log}")
         self.update_ui_status()
+
+    def show_limpeza_avancada(self):
+        self.clear_screen()
+        self.add_title("CONFIGURAR LIMPEZA")
+        sub = QLabel("Selecione o que deseja limpar. Os marcados por padrão são seguros para todos.")
+        sub.setStyleSheet("color: #555; font-size: 11px; margin-bottom: 8px;")
+        sub.setWordWrap(True)
+        sub.setAlignment(Qt.AlignCenter)
+        self.content_lyt.addWidget(sub)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet(
+            "QScrollArea { border: none; background: transparent; }"
+            "QScrollBar:vertical { width: 6px; background: #111; border-radius: 3px; }"
+            "QScrollBar::handle:vertical { background: #0eb3ff; border-radius: 3px; }"
+        )
+        inner = QWidget()
+        inner.setStyleSheet("background: transparent;")
+        inner_lyt = QVBoxLayout(inner)
+        inner_lyt.setSpacing(6)
+        inner_lyt.setContentsMargins(4, 4, 4, 4)
+
+        self._clean_checkboxes = {}
+
+        safe_cats = [c for c in _CLEAN_CATEGORIES if c["default"]]
+        opt_cats = [c for c in _CLEAN_CATEGORIES if not c["default"]]
+
+        safe_hdr = QLabel("── SEGURO (sempre recomendado)")
+        safe_hdr.setStyleSheet(f"color: {self.primary}; font-weight: bold; font-size: 11px; margin-top: 4px;")
+        inner_lyt.addWidget(safe_hdr)
+
+        for cat in safe_cats:
+            inner_lyt.addWidget(self._build_clean_row(cat, checked=True))
+
+        opt_hdr = QLabel("── OPCIONAL (revise antes de ativar)")
+        opt_hdr.setStyleSheet("color: #ffbd2e; font-weight: bold; font-size: 11px; margin-top: 10px;")
+        inner_lyt.addWidget(opt_hdr)
+
+        for cat in opt_cats:
+            inner_lyt.addWidget(self._build_clean_row(cat, checked=False))
+
+        inner_lyt.addStretch()
+        scroll.setWidget(inner)
+        self.content_lyt.addWidget(scroll, 1)
+
+        btn_row = QHBoxLayout()
+        btn_row.addStretch(1)
+
+        back = QPushButton("Voltar")
+        back.setFixedWidth(100)
+        back.setStyleSheet(
+            "background: transparent; border: 1px solid #333; color: #666;"
+            "font-weight: bold; border-radius: 6px; padding: 8px;"
+        )
+        back.clicked.connect(self.show_limpeza)
+
+        run = QPushButton("Iniciar limpeza selecionada")
+        run.setFixedWidth(220)
+        run.setStyleSheet(
+            f"background: {self.primary}; color: #030407; border: none;"
+            "border-radius: 6px; padding: 8px; font-family: 'Segoe UI'; font-weight: bold;"
+        )
+        run.clicked.connect(self._run_limpeza_avancada)
+
+        btn_row.addWidget(back)
+        btn_row.addSpacing(10)
+        btn_row.addWidget(run)
+        btn_row.addStretch(1)
+        self.content_lyt.addLayout(btn_row)
+
+        self.add_status_bar("> Escolha o que limpar e clique em Iniciar.")
+
+    def _build_clean_row(self, cat, checked):
+        row = QFrame()
+        row.setStyleSheet(
+            "QFrame { background: #0a0d14; border: 1px solid #1a1f2b; border-radius: 6px; }"
+        )
+        lyt = QVBoxLayout(row)
+        lyt.setContentsMargins(10, 8, 10, 8)
+        lyt.setSpacing(2)
+
+        top = QHBoxLayout()
+        top.setContentsMargins(0, 0, 0, 0)
+
+        cb = QCheckBox(cat["label"])
+        cb.setChecked(checked)
+        cb.setStyleSheet(
+            "QCheckBox { color: white; font-family: 'Segoe UI'; font-size: 12px; }"
+            "QCheckBox::indicator { width: 14px; height: 14px; }"
+        )
+        self._clean_checkboxes[cat["id"]] = cb
+        top.addWidget(cb, 1)
+
+        impact = QLabel(cat["impact"])
+        impact.setStyleSheet("color: #0eb3ff; font-family: 'Consolas'; font-size: 10px;")
+        top.addWidget(impact)
+        lyt.addLayout(top)
+
+        desc = QLabel(cat["desc"])
+        desc.setWordWrap(True)
+        desc.setStyleSheet("color: #888; font-family: 'Segoe UI'; font-size: 10px; padding-left: 22px;")
+        lyt.addWidget(desc)
+
+        if cat.get("warning"):
+            warn = QLabel("⚠ " + cat["warning"])
+            warn.setWordWrap(True)
+            warn.setStyleSheet("color: #ff8a4b; font-family: 'Segoe UI'; font-size: 10px; padding-left: 22px;")
+            lyt.addWidget(warn)
+
+        return row
+
+    def _run_limpeza_avancada(self):
+        selected = {cid for cid, cb in self._clean_checkboxes.items() if cb.isChecked()}
+        self.show_limpeza()
+        self.run_clean_process(selected_ids=selected)
 
     def show_home(self): self.clear_screen(); lbl = QLabel("SISTEMA PRONTO"); lbl.setFont(QFont("Segoe UI", 28, QFont.Bold)); self.add_neon(lbl, self.primary); self.content_lyt.addWidget(lbl, alignment=Qt.AlignCenter)
     def show_otimizacao(self): self.clear_screen(); self.add_title("OTIMIZAÇÃO"); self.add_status_bar("> Menu pronto.")
