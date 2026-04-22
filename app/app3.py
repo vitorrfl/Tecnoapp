@@ -155,30 +155,41 @@ class CleanWorker(QThread):
         return free.value
 
     def run(self):
-        space_before = self._free_bytes()
-        for step_id, label, shell_cmds, ps_cmds in self._STEPS:
-            if step_id not in self.selected_ids:
-                continue
-            before = self._free_bytes()
+        try:
+            space_before = self._free_bytes()
+            for step_id, label, shell_cmds, ps_cmds in self._STEPS:
+                if step_id not in self.selected_ids:
+                    continue
+                before = self._free_bytes()
+                try:
+                    if shell_cmds:
+                        subprocess.run(
+                            " & ".join(shell_cmds),
+                            shell=True,
+                            creationflags=subprocess.CREATE_NO_WINDOW,
+                            timeout=120,
+                        )
+                    if ps_cmds:
+                        subprocess.run(
+                            ["powershell", "-NoProfile", "-NonInteractive", "-Command",
+                             "; ".join(ps_cmds)],
+                            creationflags=subprocess.CREATE_NO_WINDOW,
+                            timeout=120,
+                        )
+                except Exception:
+                    pass
+                try:
+                    freed = max(0, self._free_bytes() - before)
+                except Exception:
+                    freed = 0
+                self.step_done.emit(label, freed)
             try:
-                if shell_cmds:
-                    subprocess.run(
-                        " & ".join(shell_cmds),
-                        shell=True,
-                        creationflags=subprocess.CREATE_NO_WINDOW,
-                        timeout=120,
-                    )
-                if ps_cmds:
-                    subprocess.run(
-                        ["powershell", "-NoProfile", "-NonInteractive", "-Command",
-                         "; ".join(ps_cmds)],
-                        creationflags=subprocess.CREATE_NO_WINDOW,
-                        timeout=120,
-                    )
+                total = max(0, self._free_bytes() - space_before)
             except Exception:
-                pass
-            self.step_done.emit(label, max(0, self._free_bytes() - before))
-        self.finished.emit(max(0, self._free_bytes() - space_before))
+                total = 0
+        except Exception:
+            total = 0
+        self.finished.emit(total)
 
 
 def is_admin():
@@ -499,7 +510,10 @@ class TecnoApp(QMainWindow):
         self._clean_log_label.setText("\n".join(self._clean_log_lines))
 
     def _on_clean_done(self, total: int):
-        self._clean_worker = None
+        if self._clean_worker is not None:
+            self._clean_worker.wait()       # garante que a thread encerrou no lado Qt
+            self._clean_worker.deleteLater()  # agenda destruição segura do objeto C++
+            self._clean_worker = None
         if total > 102_400:
             msg = f"✓  {self.format_size(total)} liberados"
         else:
