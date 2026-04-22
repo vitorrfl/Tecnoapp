@@ -32,3 +32,6 @@ tecnosup_clean_log.txt
 
 # Backups locais
 *.bak
+
+# Claude Code local settings
+.claude/
