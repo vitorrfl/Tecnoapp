@@ -77,19 +77,31 @@ class GamerEngine:
     def active_snapshot(self) -> Snapshot | None:
         return self._store.load_active()
 
-    def activate(self) -> RunReport:
+    def activate(self, enabled_optins: set[str] | None = None) -> RunReport:
+        """Activate tweaks. opt-in tweaks only run when their id is in
+        ``enabled_optins``; non-opt-in tweaks always run."""
         if self.is_active():
             self._log.info("activate() called while already active — ignoring")
             existing = self._store.load_active()
             return RunReport(run_id=existing.run_id if existing else "unknown")
 
+        enabled_optins = enabled_optins or set()
         snapshot = Snapshot.new(windows_version=_windows_version())
         report = RunReport(run_id=snapshot.run_id)
-        self._log.info("ACTIVATE begin run_id=%s", snapshot.run_id)
+        self._log.info("ACTIVATE begin run_id=%s optins=%s", snapshot.run_id, sorted(enabled_optins))
 
         supported: list[tuple[Tweak, dict]] = []
         for tweak in self._tweaks.values():
             try:
+                if tweak.opt_in and tweak.id not in enabled_optins:
+                    res = TweakResult(
+                        tweak_id=tweak.id,
+                        status=TweakStatus.SKIPPED_UNSUPPORTED,
+                        message="opt-in desativado",
+                    )
+                    report.skipped.append(res)
+                    self._log.info("skip %s (opt-in off)", tweak.id)
+                    continue
                 if not tweak.is_supported():
                     res = TweakResult(
                         tweak_id=tweak.id,

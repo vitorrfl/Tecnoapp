@@ -56,6 +56,12 @@ class Tweak(ABC):
     description: str = ""
     risk: RiskLevel = RiskLevel.LOW
     requires_reboot: bool = False
+    opt_in: bool = False
+    """If True, skipped by default in activate() — only runs when the user
+    explicitly enables it via the Advanced screen. Use for tweaks with
+    non-trivial failure modes (e.g. kernel-level APIs)."""
+    warning: str = ""
+    """User-facing warning shown next to opt-in tweaks in the Advanced screen."""
 
     @abstractmethod
     def is_supported(self) -> bool:

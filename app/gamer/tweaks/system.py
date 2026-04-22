@@ -85,7 +85,12 @@ class EmptyStandbyMemory(Tweak):
         "Libera páginas na lista de standby via NtSetSystemInformation. "
         "Ação pontual — sem estado a reverter."
     )
-    risk = RiskLevel.LOW
+    risk = RiskLevel.HIGH
+    opt_in = True
+    warning = (
+        "API semi-documentada do kernel (ntdll). Em alguns sistemas pode colidir "
+        "com drivers (GPU/AV) e causar BSOD (MEMORY_MANAGEMENT). Ative por sua conta e risco."
+    )
 
     def is_supported(self) -> bool:
         return sys.platform == "win32"
