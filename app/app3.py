@@ -1,7 +1,6 @@
 import sys
 import os
 import subprocess
-import datetime
 import ctypes
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QMessageBox,
                              QHBoxLayout, QPushButton, QLabel, QFrame, QGraphicsDropShadowEffect,
@@ -113,6 +112,67 @@ class GamerWorker(QThread):
         self.finished.emit(report, self.action)
 
 
+class CleanWorker(QThread):
+    step_done = Signal(str, int)   # (label, bytes_freed)
+    finished  = Signal(int)        # total bytes freed
+
+    _STEPS = [
+        ("temp_user",       "Temporários do usuário",
+         ['del /s /f /q "%TEMP%\\*.*"'], []),
+        ("temp_windows",    "Temporários do Windows",
+         ['del /s /f /q "C:\\Windows\\Temp\\*.*"'], []),
+        ("prefetch",        "Prefetch do Windows",
+         ['del /s /f /q "C:\\Windows\\Prefetch\\*.*"'], []),
+        ("dns_cache",       "Cache DNS",
+         ["ipconfig /flushdns"], []),
+        ("recycle_bin",     "Lixeira",
+         [], ["Clear-RecycleBin -Force -ErrorAction SilentlyContinue"]),
+        ("thumbnail_cache", "Cache de miniaturas",
+         ['del /f /q "%LocalAppData%\\Microsoft\\Windows\\Explorer\\thumbcache_*.db"'], []),
+        ("update_cache",    "Cache do Windows Update",
+         ["net stop wuauserv 2>nul",
+          'del /s /f /q "C:\\Windows\\SoftwareDistribution\\Download\\*.*"',
+          "net start wuauserv 2>nul"], []),
+        ("event_logs",      "Logs de eventos",
+         [], ['wevtutil cl "System" 2>$null', 'wevtutil cl "Application" 2>$null',
+              'wevtutil cl "Setup" 2>$null', 'wevtutil cl "Security" 2>$null']),
+        ("minidumps",       "Relatórios de travamento",
+         ['del /s /f /q "C:\\Windows\\Minidump\\*.*"'], []),
+    ]
+
+    def __init__(self, selected_ids: set):
+        super().__init__()
+        self.selected_ids = selected_ids
+
+    def _free_bytes(self) -> int:
+        free = ctypes.c_ulonglong(0)
+        ctypes.windll.kernel32.GetDiskFreeSpaceExW(
+            ctypes.c_wchar_p("C:\\"), None, None, ctypes.pointer(free)
+        )
+        return free.value
+
+    def run(self):
+        space_before = self._free_bytes()
+        for step_id, label, shell_cmds, ps_cmds in self._STEPS:
+            if step_id not in self.selected_ids:
+                continue
+            before = self._free_bytes()
+            if shell_cmds:
+                subprocess.run(
+                    " & ".join(shell_cmds),
+                    shell=True,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                )
+            if ps_cmds:
+                subprocess.run(
+                    ["powershell", "-NoProfile", "-NonInteractive", "-Command",
+                     "; ".join(ps_cmds)],
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                )
+            self.step_done.emit(label, max(0, self._free_bytes() - before))
+        self.finished.emit(max(0, self._free_bytes() - space_before))
+
+
 def is_admin():
     try: return ctypes.windll.shell32.IsUserAnAdmin()
     except: return False
@@ -138,6 +198,8 @@ class TecnoApp(QMainWindow):
         
         self.status_cache = ""
         self._clean_checkboxes: dict = {}
+        self._clean_worker: CleanWorker | None = None
+        self._clean_log_lines: list = []
         self.gamer_engine = build_engine()
         self._gamer_worker = None
 
@@ -220,75 +282,17 @@ class TecnoApp(QMainWindow):
         if size < 1024*1024: return f"{(size/1024):.2f} KB"
         return f"{(size/(1024*1024)):.2f} MB" if size < 1024*1024*1024 else f"{(size/(1024*1024*1024)):.2f} GB"
 
-    def is_cleanmgr_running(self):
-        try:
-            output = subprocess.check_output('tasklist', shell=True).decode('latin-1')
-            return "cleanmgr.exe" in output.lower()
-        except: return False
-
     def run_clean_process(self, selected_ids=None):
-        if selected_ids is None:
+        if not isinstance(selected_ids, set):
             selected_ids = {c["id"] for c in _CLEAN_CATEGORIES if c["default"]}
-
-        self.space_before = self.get_free_space()
-        self.status_lbl.setText("> Efetuando limpeza...")
-        self.status_lbl.setStyleSheet(f"color: {self.primary}; font-weight: bold;")
-        QApplication.processEvents()
-
-        shell_cmds = []
-        ps_cmds = []
-
-        if "temp_user" in selected_ids:
-            shell_cmds.append('del /s /f /q "%TEMP%\\*.*"')
-        if "temp_windows" in selected_ids:
-            shell_cmds.append('del /s /f /q "C:\\Windows\\Temp\\*.*"')
-        if "prefetch" in selected_ids:
-            shell_cmds.append('del /s /f /q "C:\\Windows\\Prefetch\\*.*"')
-        if "dns_cache" in selected_ids:
-            shell_cmds.append("ipconfig /flushdns")
-        if "recycle_bin" in selected_ids:
-            ps_cmds.append("Clear-RecycleBin -Force -ErrorAction SilentlyContinue")
-        if "thumbnail_cache" in selected_ids:
-            shell_cmds.append('del /f /q "%LocalAppData%\\Microsoft\\Windows\\Explorer\\thumbcache_*.db"')
-        if "update_cache" in selected_ids:
-            shell_cmds.extend([
-                "net stop wuauserv 2>nul",
-                'del /s /f /q "C:\\Windows\\SoftwareDistribution\\Download\\*.*"',
-                "net start wuauserv 2>nul",
-            ])
-        if "event_logs" in selected_ids:
-            for ln in ["System", "Application", "Setup", "Security"]:
-                ps_cmds.append(f'wevtutil cl "{ln}" 2>$null')
-        if "minidumps" in selected_ids:
-            shell_cmds.append('del /s /f /q "C:\\Windows\\Minidump\\*.*"')
-
-        if shell_cmds:
-            subprocess.run(" & ".join(shell_cmds), shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
-        if ps_cmds:
-            subprocess.run(
-                ["powershell", "-NoProfile", "-NonInteractive", "-Command", "; ".join(ps_cmds)],
-                creationflags=subprocess.CREATE_NO_WINDOW,
-            )
-
-        self.finish_cleaning_logic()
-
-    def check_clean_status(self):
-        if not self.is_cleanmgr_running():
-            self.monitor_timer.stop()
-            self.status_lbl.setText("> Validando limpeza...")
-            QApplication.processEvents()
-            QTimer.singleShot(2500, self.finish_cleaning_logic)
-
-    def finish_cleaning_logic(self):
-        space_after = self.get_free_space()
-        diff = space_after - self.space_before
-        agora = datetime.datetime.now().strftime("%d/%m/%Y às %H:%M:%S")
-
-        if diff > 1024:
-            self.status_cache = f"> SUCESSO: {self.format_size(diff)} liberados!\n> DATA: {agora}"
-        else:
-            self.status_cache = f"> Sistema otimizado recentemente.\n> DATA: {agora}"
-        self.update_ui_status()
+        if self._clean_worker is not None:
+            return
+        self._clean_log_lines = []
+        self.show_limpeza_progresso()
+        self._clean_worker = CleanWorker(selected_ids)
+        self._clean_worker.step_done.connect(self._on_clean_step)
+        self._clean_worker.finished.connect(self._on_clean_done)
+        self._clean_worker.start()
 
     def update_ui_status(self):
         if self.status_cache:
@@ -302,7 +306,7 @@ class TecnoApp(QMainWindow):
         desc.setStyleSheet("color: #444; margin-bottom: 25px;")
         self.content_lyt.addWidget(desc, alignment=Qt.AlignCenter)
 
-        self.add_action_btn("LIMPEZA RÁPIDA", self.run_clean_process)
+        self.add_action_btn("LIMPEZA RÁPIDA", lambda: self.run_clean_process())
 
         btn_adv = QPushButton("CONFIGURAR LIMPEZA")
         btn_adv.setFixedWidth(400)
@@ -435,8 +439,72 @@ class TecnoApp(QMainWindow):
 
     def _run_limpeza_avancada(self):
         selected = {cid for cid, cb in self._clean_checkboxes.items() if cb.isChecked()}
-        self.show_limpeza()
         self.run_clean_process(selected_ids=selected)
+
+    def show_limpeza_progresso(self):
+        self.clear_screen()
+        self.add_title("LIMPEZA EM ANDAMENTO")
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet(
+            "QScrollArea { border: 1px solid #1a1f2b; background: #0a0d14; border-radius: 8px; }"
+            "QScrollBar:vertical { width: 6px; background: #111; border-radius: 3px; }"
+            "QScrollBar::handle:vertical { background: #0eb3ff; border-radius: 3px; }"
+        )
+        log_inner = QWidget()
+        log_inner.setStyleSheet("background: transparent;")
+        log_lyt = QVBoxLayout(log_inner)
+        log_lyt.setAlignment(Qt.AlignTop)
+        log_lyt.setContentsMargins(14, 12, 14, 12)
+
+        self._clean_log_label = QLabel("> Iniciando limpeza...")
+        self._clean_log_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        self._clean_log_label.setStyleSheet(
+            f"color: {self.primary}; font-family: 'Consolas'; font-size: 12px; line-height: 180%;"
+        )
+        self._clean_log_label.setWordWrap(True)
+        log_lyt.addWidget(self._clean_log_label)
+        scroll.setWidget(log_inner)
+        self.content_lyt.addWidget(scroll, 1)
+
+        self._clean_total_label = QLabel("")
+        self._clean_total_label.setFont(QFont("Segoe UI", 20, QFont.Bold))
+        self._clean_total_label.setAlignment(Qt.AlignCenter)
+        self._clean_total_label.setStyleSheet(f"color: {self.primary}; margin-top: 8px;")
+        self._clean_total_label.hide()
+        self.content_lyt.addWidget(self._clean_total_label)
+
+        self._clean_btn_voltar = QPushButton("VOLTAR")
+        self._clean_btn_voltar.setFixedWidth(200)
+        self._clean_btn_voltar.setEnabled(False)
+        self._clean_btn_voltar.setStyleSheet(
+            "background: transparent; border: 1px solid #333; color: #444;"
+            "font-weight: bold; border-radius: 8px; padding: 10px;"
+        )
+        self._clean_btn_voltar.clicked.connect(self.show_limpeza)
+        self.content_lyt.addWidget(self._clean_btn_voltar, alignment=Qt.AlignCenter)
+
+    def _on_clean_step(self, label: str, freed: int):
+        size_str = f"   +{self.format_size(freed)}" if freed > 1024 else ""
+        self._clean_log_lines.append(f"✓  {label}{size_str}")
+        self._clean_log_label.setText("\n".join(self._clean_log_lines))
+
+    def _on_clean_done(self, total: int):
+        self._clean_worker = None
+        if total > 102_400:
+            msg = f"✓  {self.format_size(total)} liberados"
+        else:
+            msg = "✓  Sistema já estava otimizado"
+        self._clean_total_label.setText(msg)
+        self._clean_total_label.show()
+        self.add_neon(self._clean_total_label, self.primary)
+        self._clean_btn_voltar.setEnabled(True)
+        self._clean_btn_voltar.setStyleSheet(
+            f"background: transparent; border: 1px solid {self.primary}; color: {self.primary};"
+            "font-weight: bold; border-radius: 8px; padding: 10px;"
+        )
+        self.status_cache = msg
 
     def show_home(self): self.clear_screen(); lbl = QLabel("SISTEMA PRONTO"); lbl.setFont(QFont("Segoe UI", 28, QFont.Bold)); self.add_neon(lbl, self.primary); self.content_lyt.addWidget(lbl, alignment=Qt.AlignCenter)
     def show_otimizacao(self): self.clear_screen(); self.add_title("OTIMIZAÇÃO"); self.add_status_bar("> Menu pronto.")
