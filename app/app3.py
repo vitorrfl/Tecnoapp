@@ -7,12 +7,19 @@ import ctypes
 from datetime import datetime
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QMessageBox,
                              QHBoxLayout, QPushButton, QLabel, QFrame, QGraphicsDropShadowEffect,
-                             QCheckBox, QScrollArea)
-from PySide6.QtGui import QFont, QColor, QCursor, QPainter, QPen, QBrush
-from PySide6.QtCore import Qt, QTimer, QThread, Signal
+                             QCheckBox, QScrollArea, QGridLayout, QSizePolicy, QProgressBar)
+from PySide6.QtGui import QFont, QColor, QCursor, QPainter, QPen, QBrush, QIcon, QPixmap
+from PySide6.QtCore import Qt, QTimer, QThread, Signal, QSize
+import shiboken6
 
 from gamer import build_engine, load_enabled_optins, save_enabled_optins
 from gamer.tweaks import Category
+from ui import Card, HeroCard, MetricLabel, Chip, ResponsiveCardRow, Palette
+from system_info import (
+    os_info, cpu_static, cpu_pct, mem_live, disk_c_info, disks_info,
+    processes_count, uptime_seconds, format_uptime, top_processes,
+    HardwareInfoWorker,
+)
 
 _CLEAN_CATEGORIES = [
     {
@@ -317,7 +324,8 @@ _STATUS_FILE = os.path.join(
 def _load_optimize_state() -> dict:
     try:
         with open(_OPTIMIZE_STATE_FILE, "r", encoding="utf-8") as f:
-            return json.load(f) or {}
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
     except Exception:
         return {}
 
@@ -333,7 +341,8 @@ def _save_optimize_state(state: dict) -> bool:
 def _load_clean_state() -> dict:
     try:
         with open(_CLEAN_STATE_FILE, "r", encoding="utf-8") as f:
-            return json.load(f) or {}
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
     except Exception:
         return {}
 
@@ -357,7 +366,8 @@ _MODULE_LABELS = {
 def _load_module_statuses() -> dict:
     try:
         with open(_STATUS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f) or {}
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
     except Exception:
         return {}
 
@@ -376,11 +386,15 @@ def _save_module_status(module: str, message: str) -> None:
 
 def _get_module_status(module: str) -> str:
     """Retorna string formatada com timestamp, ou '' se não houver histórico."""
-    entry = _load_module_statuses().get(module) or {}
-    if entry.get("message") and entry.get("timestamp"):
-        label = _MODULE_LABELS.get(module, module)
-        return f"> Última {label}: {entry['timestamp']} — {entry['message']}"
-    return ""
+    entry = _load_module_statuses().get(module)
+    if not isinstance(entry, dict):
+        return ""
+    message = entry.get("message")
+    timestamp = entry.get("timestamp")
+    if not (isinstance(message, str) and isinstance(timestamp, str) and message and timestamp):
+        return ""
+    label = _MODULE_LABELS.get(module, module)
+    return f"> Última {label}: {timestamp} — {message}"
 
 
 class OptimizeWorker(QThread):
@@ -811,8 +825,9 @@ class TecnoApp(QMainWindow):
             ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
             sys.exit()
 
-        self.setWindowTitle("TECNOAPP OTIMIZAÇÃO - Pro Edition")
-        self.setFixedSize(850, 600)
+        self.setWindowTitle("Tecnosup · Soluções Digitais")
+        self.resize(1100, 720)
+        self.setMinimumSize(900, 620)
 
         # Cores da Identidade Visual
         self.primary = "#0eb3ff"    
@@ -840,11 +855,19 @@ class TecnoApp(QMainWindow):
             QLabel {{ color: #ffffff; background: transparent; }}
             
             QPushButton#MenuBtn {{
-                background: transparent; border: 2px solid {self.primary};
-                color: {self.primary}; font-family: 'Segoe UI'; font-size: 11px;
-                font-weight: bold; border-radius: 10px; padding: 8px;
+                background: transparent; border: 1px solid rgba(14, 179, 255, 0.25);
+                color: #ffffff; font-family: 'Segoe UI'; font-size: 11px;
+                font-weight: bold; border-radius: 8px;
+                padding: 9px 12px; text-align: left;
             }}
-            QPushButton#MenuBtn:hover {{ background: {self.primary}; color: black; }}
+            QPushButton#MenuBtn:hover {{
+                background: rgba(14, 179, 255, 0.10);
+                border: 1px solid {self.primary};
+                color: {self.primary};
+            }}
+            QPushButton#MenuBtn:pressed {{
+                background: rgba(14, 179, 255, 0.18);
+            }}
             
             QPushButton#ActionBtn {{
                 background-color: {self.primary}; color: black; font-weight: bold;
@@ -860,7 +883,12 @@ class TecnoApp(QMainWindow):
 
             QPushButton#GamerNav {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {self.primary}, stop:1 {self.secondary});
-                color: white; font-weight: bold; border-radius: 15px; padding: 10px; border: 1px solid transparent;
+                color: white; font-weight: bold; font-family: 'Segoe UI'; font-size: 11px;
+                border-radius: 8px; padding: 9px 12px; border: 1px solid transparent;
+                text-align: left;
+            }}
+            QPushButton#GamerNav:hover {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2dc3ff, stop:1 #8a2bff);
             }}
             QPushButton#ExitBtn {{
                 background: transparent; border: 1px solid #ff4b4b; color: #ff4b4b; border-radius: 8px; font-weight: bold;
@@ -874,18 +902,21 @@ class TecnoApp(QMainWindow):
         main_layout.setContentsMargins(0, 0, 0, 0)
 
         sidebar = QFrame(); sidebar.setObjectName("Sidebar"); sidebar.setFixedWidth(220)
-        side_lyt = QVBoxLayout(sidebar); side_lyt.setContentsMargins(15, 30, 15, 30); side_lyt.setSpacing(10)
-        
-        logo = QLabel("TECNOSUP"); logo.setFont(QFont("Segoe UI", 22, QFont.Bold))
-        self.add_neon(logo, self.primary); side_lyt.addWidget(logo, alignment=Qt.AlignCenter)
-        side_lyt.addSpacing(20)
-        
-        side_lyt.addWidget(self.create_menu_btn("🧹 LIMPEZA", self.show_limpeza))
-        side_lyt.addWidget(self.create_menu_btn("⚡ OTIMIZAÇÃO", self.show_otimizacao))
-        side_lyt.addWidget(self.create_menu_btn("🔧 REPAROS", self.show_reparos))
-        
-        self.btn_gamer_nav = QPushButton("🎮 MODO GAMER")
+        side_lyt = QVBoxLayout(sidebar); side_lyt.setContentsMargins(15, 24, 15, 18); side_lyt.setSpacing(10)
+
+        side_lyt.addWidget(self._build_logo_widget(), alignment=Qt.AlignCenter)
+        side_lyt.addSpacing(18)
+
+        side_lyt.addWidget(self.create_menu_btn("LIMPEZA",        self.show_limpeza,    ""))
+        side_lyt.addWidget(self.create_menu_btn("OTIMIZAÇÃO",     self.show_otimizacao, ""))
+        side_lyt.addWidget(self.create_menu_btn("REPAROS",        self.show_reparos,    ""))
+        side_lyt.addWidget(self.create_menu_btn("ESPECIFICAÇÕES", self.show_specs,      ""))
+
+        self.btn_gamer_nav = QPushButton("MODO GAMER")
         self.btn_gamer_nav.setObjectName("GamerNav")
+        self.btn_gamer_nav.setCursor(QCursor(Qt.PointingHandCursor))
+        self.btn_gamer_nav.setIcon(self._menu_icon("", size=18))
+        self.btn_gamer_nav.setIconSize(QSize(18, 18))
         self.btn_gamer_nav.clicked.connect(self.show_gamer)
         self.add_neon(self.btn_gamer_nav, self.secondary)
         side_lyt.addWidget(self.btn_gamer_nav)
@@ -893,6 +924,12 @@ class TecnoApp(QMainWindow):
         side_lyt.addStretch()
         btn_sair = QPushButton("SAIR"); btn_sair.setObjectName("ExitBtn"); btn_sair.setFixedSize(180, 35)
         btn_sair.clicked.connect(self.finalizar_app); side_lyt.addWidget(btn_sair, alignment=Qt.AlignCenter)
+
+        side_lyt.addSpacing(8)
+        ver = QLabel("v 1.0 · Tecnosup")
+        ver.setStyleSheet("color: #3a4250; font-family: 'Consolas'; font-size: 9px; background: transparent;")
+        ver.setAlignment(Qt.AlignCenter)
+        side_lyt.addWidget(ver)
 
         main_layout.addWidget(sidebar)
 
@@ -932,6 +969,112 @@ class TecnoApp(QMainWindow):
         self._clean_worker.finished.connect(self._on_clean_done)
         self._clean_worker.start()
 
+    def _is_widget_alive(self, widget) -> bool:
+        """True se o widget existe e o objeto C++ subjacente ainda é válido.
+
+        Usado pelos handlers de worker para evitar crash ao atualizar
+        widgets já destruídos (ex.: usuário navegou de tela enquanto o
+        worker ainda estava rodando).
+        """
+        if widget is None:
+            return False
+        try:
+            return shiboken6.isValid(widget)
+        except Exception:
+            return False
+
+    def _menu_icon(self, glyph: str, size: int = 18, color: str = "#ffffff") -> QIcon:
+        """Renderiza um glifo Segoe MDL2 Assets como QIcon na cor especificada.
+
+        Permite ícones reais (broom, lightning, wrench, cpu, gamepad) em
+        vez de emojis coloridos do sistema. Funciona em Win10+ (MDL2)
+        e Win11 (Fluent Icons herda os codepoints).
+        """
+        pix = QPixmap(size, size)
+        pix.fill(Qt.transparent)
+        p = QPainter(pix)
+        p.setRenderHint(QPainter.Antialiasing)
+        p.setRenderHint(QPainter.TextAntialiasing)
+        f = QFont("Segoe Fluent Icons")
+        if not f.exactMatch():
+            f = QFont("Segoe MDL2 Assets")
+        f.setPixelSize(size - 2)
+        p.setFont(f)
+        p.setPen(QColor(color))
+        p.drawText(pix.rect(), Qt.AlignCenter, glyph)
+        p.end()
+        return QIcon(pix)
+
+    def _build_logo_widget(self) -> QFrame:
+        """Bloco da marca Tecnosup na sidebar — clicável → Home.
+
+        Carrega `app/assets/tecnosup_logo.png` se existir; senão usa
+        fallback tipográfico. Para usar o logo oficial, salvar a
+        imagem como `app/assets/tecnosup_logo.png`.
+        """
+        frame = QFrame()
+        frame.setObjectName("LogoBlock")
+        frame.setCursor(QCursor(Qt.PointingHandCursor))
+        frame.setStyleSheet(
+            "QFrame#LogoBlock { background: transparent; border: none; border-radius: 8px; }"
+            "QFrame#LogoBlock:hover { background: rgba(14, 179, 255, 0.06); }"
+        )
+        lyt = QVBoxLayout(frame)
+        lyt.setContentsMargins(8, 6, 8, 6)
+        lyt.setSpacing(0)
+        lyt.setAlignment(Qt.AlignCenter)
+
+        assets_dir = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "assets"
+        )
+        # Aceita tanto "tecnosup_logo.png" quanto "logo.png" (qualquer um
+        # que o usuário salvar nessa pasta).
+        loaded_image = False
+        for filename in ("tecnosup_logo.png", "logo.png", "tecnosup.png"):
+            logo_path = os.path.join(assets_dir, filename)
+            if os.path.exists(logo_path):
+                pix = QPixmap(logo_path)
+                if not pix.isNull():
+                    scaled = pix.scaledToWidth(180, Qt.SmoothTransformation)
+                    img_lbl = QLabel()
+                    img_lbl.setPixmap(scaled)
+                    img_lbl.setAlignment(Qt.AlignCenter)
+                    img_lbl.setStyleSheet("background: transparent;")
+                    lyt.addWidget(img_lbl)
+                    loaded_image = True
+                    break
+
+        if not loaded_image:
+            main = QLabel("Tecnosup")
+            main.setFont(QFont("Segoe UI", 22, QFont.Bold))
+            main.setAlignment(Qt.AlignCenter)
+            main.setStyleSheet(f"color: {self.primary}; background: transparent;")
+            self.add_neon(main, self.primary)
+            lyt.addWidget(main)
+
+            slogan = QLabel("SOLUÇÕES DIGITAIS")
+            slogan.setFont(QFont("Segoe UI", 8, QFont.Bold))
+            slogan.setAlignment(Qt.AlignCenter)
+            slogan.setStyleSheet(
+                f"color: {self.primary}; background: transparent; letter-spacing: 4px;"
+            )
+            lyt.addWidget(slogan)
+
+        def _on_click(_event):
+            self.show_home()
+        frame.mousePressEvent = _on_click
+        return frame
+
+    def _stop_metrics_timer(self):
+        """Para o QTimer ativo de métricas live (Home/Specs)."""
+        timer = getattr(self, "_metrics_timer", None)
+        if timer is not None:
+            try:
+                timer.stop()
+            except Exception:
+                pass
+            self._metrics_timer = None
+
     def _set_status_bar(self, module: str, default: str) -> None:
         pending = self._pending_status.pop(module, None)
         if pending:
@@ -951,24 +1094,151 @@ class TecnoApp(QMainWindow):
 
     def show_limpeza(self):
         self.clear_screen()
-        self.add_title("MÓDULO DE LIMPEZA")
-        desc = QLabel("Limpeza segura com ferramentas nativas do Windows.")
-        desc.setStyleSheet("color: #444; margin-bottom: 25px;")
-        self.content_lyt.addWidget(desc, alignment=Qt.AlignCenter)
+        self._stop_metrics_timer()
 
-        self.add_action_btn("LIMPEZA RÁPIDA", lambda: self.run_clean_process())
+        panel = QWidget()
+        panel.setStyleSheet("background: transparent;")
+        panel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        panel_lyt = QVBoxLayout(panel)
+        panel_lyt.setContentsMargins(32, 24, 32, 24)
+        panel_lyt.setSpacing(14)
+        panel_lyt.setAlignment(Qt.AlignTop)
 
-        btn_adv = QPushButton("CONFIGURAR LIMPEZA")
-        btn_adv.setFixedWidth(400)
-        btn_adv.setFixedHeight(42)
-        btn_adv.setStyleSheet(
-            f"background: transparent; border: 1px solid {self.primary}; color: {self.primary};"
-            "font-weight: bold; border-radius: 8px; font-size: 13px;"
+        title = QLabel("LIMPEZA")
+        title.setFont(QFont("Segoe UI", 22, QFont.Bold))
+        title.setStyleSheet(f"color: {Palette.FG_PRIMARY}; background: transparent;")
+        panel_lyt.addWidget(title)
+
+        sub = QLabel("Limpeza segura com ferramentas nativas do Windows")
+        sub.setStyleSheet(
+            f"color: {Palette.FG_MUTED}; font-family: 'Segoe UI'; "
+            f"font-size: 12px; background: transparent;"
         )
-        btn_adv.clicked.connect(self.show_limpeza_avancada)
-        self.content_lyt.addWidget(btn_adv, alignment=Qt.AlignCenter)
+        panel_lyt.addWidget(sub)
+        panel_lyt.addSpacing(4)
 
+        panel_lyt.addWidget(self._disk_usage_card())
+        panel_lyt.addWidget(self._limpeza_hero())
+
+        self.content_lyt.addWidget(panel, 1)
         self._set_status_bar("clean", "> Nenhuma limpeza realizada ainda.")
+
+    def _disk_usage_card(self) -> Card:
+        """Card com barra de uso do disco C:."""
+        card = Card()
+        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        card.layout().setSpacing(8)
+
+        free, total = self._get_disk_info()
+        used_pct = int(((total - free) / total) * 100) if total > 0 else 0
+
+        header_lyt = QHBoxLayout()
+        header_lyt.setContentsMargins(0, 0, 0, 0)
+        title = QLabel("DISCO C:")
+        title.setStyleSheet(
+            f"color: {Palette.ACCENT_CYAN}; font-family: 'Segoe UI'; font-size: 11px;"
+            f" font-weight: bold; letter-spacing: 1px; background: transparent;"
+        )
+        header_lyt.addWidget(title)
+        header_lyt.addStretch(1)
+        pct = QLabel(f"{used_pct}%" if total > 0 else "—")
+        pct.setStyleSheet(
+            f"color: {Palette.FG_PRIMARY}; font-family: 'Consolas'; "
+            f"font-size: 14px; font-weight: bold; background: transparent;"
+        )
+        header_lyt.addWidget(pct)
+        card.layout().addLayout(header_lyt)
+
+        bar = QProgressBar()
+        bar.setFixedHeight(10)
+        bar.setTextVisible(False)
+        bar.setRange(0, 100)
+        bar.setValue(used_pct)
+        bar.setStyleSheet(
+            f"QProgressBar {{"
+            f"  background: #04060a; border: 1px solid {Palette.BORDER_SUBTLE};"
+            f"  border-radius: 5px;"
+            f"}}"
+            f"QProgressBar::chunk {{"
+            f"  background: {Palette.ACCENT_CYAN}; border-radius: 4px;"
+            f"}}"
+        )
+        card.add(bar)
+
+        if total > 0:
+            stats = QLabel(
+                f"{self.format_size(total - free)} usados  ·  "
+                f"{self.format_size(free)} livres  ·  "
+                f"{self.format_size(total)} total"
+            )
+        else:
+            stats = QLabel("disco indisponível")
+        stats.setAlignment(Qt.AlignCenter)
+        stats.setStyleSheet(
+            f"color: {Palette.FG_MUTED}; font-family: 'Consolas'; "
+            f"font-size: 11px; background: transparent;"
+        )
+        card.add(stats)
+        return card
+
+    def _limpeza_hero(self) -> HeroCard:
+        """Hero card com contador de categorias + CTA principal."""
+        hero = HeroCard(accent_color=Palette.ACCENT_CYAN)
+        hero.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+
+        section = QLabel("LIMPEZA RÁPIDA")
+        section.setAlignment(Qt.AlignCenter)
+        section.setStyleSheet(
+            f"color: {Palette.ACCENT_CYAN}; font-family: 'Segoe UI'; font-size: 11px;"
+            f" font-weight: bold; letter-spacing: 1px; background: transparent;"
+        )
+        hero.add(section)
+
+        state = _load_clean_state()
+        saved = state.get("user_selections") or {}
+        if saved:
+            selected = sum(1 for v in saved.values() if v)
+        else:
+            selected = sum(1 for c in _CLEAN_CATEGORIES if c["default"])
+        total_cats = len(_CLEAN_CATEGORIES)
+
+        hero.add(MetricLabel(f"{selected} de {total_cats}"))
+        noun = "categoria ativa" if selected == 1 else "categorias ativas"
+        desc = QLabel(noun)
+        desc.setAlignment(Qt.AlignCenter)
+        desc.setStyleSheet(
+            f"color: {Palette.FG_MUTED}; font-family: 'Segoe UI'; "
+            f"font-size: 11px; background: transparent;"
+        )
+        hero.add(desc)
+        hero.add_spacing(6)
+
+        btn = QPushButton("INICIAR LIMPEZA")
+        btn.setFixedWidth(400)
+        btn.setCursor(QCursor(Qt.PointingHandCursor))
+        btn.setStyleSheet(
+            f"QPushButton {{"
+            f"  background-color: {self.primary}; color: black; font-weight: bold;"
+            f"  border-radius: 8px; padding: 12px; border: none; font-size: 14px;"
+            f"}}"
+            f"QPushButton:hover {{ background-color: white; }}"
+        )
+        btn.clicked.connect(lambda: self.run_clean_process())
+        self.add_neon(btn, self.primary)
+        hero.add(btn, alignment=Qt.AlignCenter)
+
+        cfg = QPushButton("Configurar o que é limpo →")
+        cfg.setFixedWidth(260)
+        cfg.setCursor(QCursor(Qt.PointingHandCursor))
+        cfg.setStyleSheet(
+            f"background:transparent; color:{Palette.ACCENT_CYAN}; "
+            f"border:1px solid {Palette.ACCENT_CYAN};"
+            f"border-radius:6px; padding:6px; font-family:'Segoe UI'; font-size:11px;"
+        )
+        cfg.clicked.connect(self.show_limpeza_avancada)
+        hero.add(cfg, alignment=Qt.AlignCenter)
+
+        return hero
 
     def show_limpeza_avancada(self):
         self.clear_screen()
@@ -1101,7 +1371,8 @@ class TecnoApp(QMainWindow):
     def _save_clean_and_return(self):
         self._save_clean_selections()
         selected = sum(1 for cb in self._clean_checkboxes.values() if cb.isChecked())
-        self._pending_status["clean"] = f"> ✓ Preferências salvas ({selected} itens selecionados)"
+        noun = "categoria selecionada" if selected == 1 else "categorias selecionadas"
+        self._pending_status["clean"] = f"> ✓ Preferências salvas ({selected} {noun})"
         self.show_limpeza()
 
     def show_limpeza_progresso(self):
@@ -1149,94 +1420,797 @@ class TecnoApp(QMainWindow):
         self.content_lyt.addWidget(self._clean_btn_voltar, alignment=Qt.AlignCenter)
 
     def _on_clean_step(self, label: str, freed: int):
+        log_label = getattr(self, "_clean_log_label", None)
+        if not self._is_widget_alive(log_label):
+            return
         size_str = f"   +{self.format_size(freed)}" if freed > 1024 else ""
         self._clean_log_lines.append(f"✓  {label}{size_str}")
-        self._clean_log_label.setText("\n".join(self._clean_log_lines))
+        log_label.setText("\n".join(self._clean_log_lines))
 
     def _on_clean_calculating(self):
+        log_label = getattr(self, "_clean_log_label", None)
+        if not self._is_widget_alive(log_label):
+            return
         self._clean_log_lines.append("")
         self._clean_log_lines.append("Calculando resultado·")
-        self._clean_log_label.setText("\n".join(self._clean_log_lines))
+        log_label.setText("\n".join(self._clean_log_lines))
         self._clean_dots = 0
         self._clean_calc_timer = QTimer(self)
         self._clean_calc_timer.timeout.connect(self._animate_clean_dots)
         self._clean_calc_timer.start(180)
 
     def _animate_clean_dots(self):
+        log_label = getattr(self, "_clean_log_label", None)
+        if not self._is_widget_alive(log_label):
+            # Widget sumiu (usuário navegou) — para o timer para não vazar.
+            if self._clean_calc_timer is not None:
+                try:
+                    self._clean_calc_timer.stop()
+                except Exception:
+                    pass
+                self._clean_calc_timer = None
+            return
         try:
             self._clean_dots = (self._clean_dots + 1) % 3
             dots = "·" * (self._clean_dots + 1)
             self._clean_log_lines[-1] = f"Calculando resultado{dots}"
-            self._clean_log_label.setText("\n".join(self._clean_log_lines))
+            log_label.setText("\n".join(self._clean_log_lines))
         except (RuntimeError, IndexError):
             pass
 
     def _on_clean_done(self, total: int):
         if self._clean_calc_timer is not None:
-            self._clean_calc_timer.stop()
+            try:
+                self._clean_calc_timer.stop()
+            except Exception:
+                pass
             self._clean_calc_timer = None
-        # Remove a linha de animação e a linha em branco antes dela
-        while self._clean_log_lines and (
-            self._clean_log_lines[-1].startswith("Calculando") or
-            self._clean_log_lines[-1] == ""
-        ):
-            self._clean_log_lines.pop()
-        self._clean_log_label.setText("\n".join(self._clean_log_lines))
 
+        # Worker cleanup — independente de widgets estarem vivos.
         if self._clean_worker is not None:
-            self._clean_worker.wait()
-            self._clean_worker.deleteLater()
+            try:
+                self._clean_worker.wait()
+                self._clean_worker.deleteLater()
+            except Exception:
+                pass
             self._clean_worker = None
+
         if total > 102_400:
             msg = f"✓  {self.format_size(total)} liberados"
         else:
-            msg = "✓  Sistema já estava otimizado"
-        self._clean_total_label.setText(msg)
-        self._clean_total_label.show()
-        self.add_neon(self._clean_total_label, self.primary)
-        self._clean_btn_voltar.setEnabled(True)
-        self._clean_btn_voltar.setStyleSheet(
-            f"background: transparent; border: 1px solid {self.primary}; color: {self.primary};"
-            "font-weight: bold; border-radius: 8px; padding: 10px;"
-        )
+            msg = "✓  Sistema já estava limpo"
         _save_module_status("clean", msg)
 
-    def show_home(self): self.clear_screen(); lbl = QLabel("SISTEMA PRONTO"); lbl.setFont(QFont("Segoe UI", 28, QFont.Bold)); self.add_neon(lbl, self.primary); self.content_lyt.addWidget(lbl, alignment=Qt.AlignCenter)
+        # Atualiza UI só se os widgets da tela de progresso ainda existem.
+        log_label   = getattr(self, "_clean_log_label",   None)
+        total_label = getattr(self, "_clean_total_label", None)
+        btn_voltar  = getattr(self, "_clean_btn_voltar",  None)
+        if self._is_widget_alive(log_label):
+            while self._clean_log_lines and (
+                self._clean_log_lines[-1].startswith("Calculando") or
+                self._clean_log_lines[-1] == ""
+            ):
+                self._clean_log_lines.pop()
+            log_label.setText("\n".join(self._clean_log_lines))
+        if self._is_widget_alive(total_label):
+            total_label.setText(msg)
+            total_label.show()
+            self.add_neon(total_label, self.primary)
+        if self._is_widget_alive(btn_voltar):
+            btn_voltar.setEnabled(True)
+            btn_voltar.setStyleSheet(
+                f"background: transparent; border: 1px solid {self.primary}; color: {self.primary};"
+                "font-weight: bold; border-radius: 8px; padding: 10px;"
+            )
+
+    # ═══════════════════════════════════════════════════════════════════
+    # HOME — Dashboard
+    # ═══════════════════════════════════════════════════════════════════
+    def show_home(self):
+        self.clear_screen()
+        self._stop_metrics_timer()
+
+        panel = QWidget()
+        panel.setStyleSheet("background: transparent;")
+        panel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        panel_lyt = QVBoxLayout(panel)
+        panel_lyt.setContentsMargins(32, 22, 32, 22)
+        panel_lyt.setSpacing(12)
+        panel_lyt.setAlignment(Qt.AlignTop)
+
+        # Saudação contextual
+        info = os_info()
+        user = info.get("user", "")
+        greeting_txt = f"Olá, {user}" if user and user != "—" else "Olá"
+        greeting = QLabel(greeting_txt)
+        greeting.setFont(QFont("Segoe UI", 22, QFont.Bold))
+        greeting.setStyleSheet(f"color: {Palette.FG_PRIMARY}; background: transparent;")
+        panel_lyt.addWidget(greeting)
+
+        last_clean_ts = _load_module_statuses().get("clean", {}).get("timestamp")
+        sub_parts = [
+            info.get("system", "—"),
+            f"uptime {format_uptime(uptime_seconds())}",
+        ]
+        if last_clean_ts:
+            sub_parts.append(f"última limpeza {last_clean_ts}")
+        sub = QLabel("  ·  ".join(sub_parts))
+        sub.setStyleSheet(
+            f"color: {Palette.FG_MUTED}; font-family: 'Segoe UI'; "
+            f"font-size: 11px; background: transparent;"
+        )
+        panel_lyt.addWidget(sub)
+        panel_lyt.addSpacing(4)
+
+        # Linha de 3 cards LIVE (CPU / MEMÓRIA / DISCO C:)
+        live_row = QHBoxLayout()
+        live_row.setSpacing(12)
+
+        cpu = cpu_static()
+        cpu_card, self._home_cpu_metric, self._home_cpu_bar, self._home_cpu_sub = \
+            self._build_live_card(
+                "CPU", "0%",
+                f"{cpu['threads']} threads · {cpu['freq']}",
+            )
+        live_row.addWidget(cpu_card)
+
+        m = mem_live()
+        ram_card, self._home_ram_metric, self._home_ram_bar, self._home_ram_sub = \
+            self._build_live_card(
+                "MEMÓRIA", f"{int(m['pct'])}%",
+                f"{self.format_size(m['used'])} / {self.format_size(m['total'])}",
+            )
+        self._home_ram_bar.setValue(int(m["pct"]))
+        live_row.addWidget(ram_card)
+
+        d = disk_c_info()
+        disk_card, self._home_disk_metric, self._home_disk_bar, self._home_disk_sub = \
+            self._build_live_card(
+                "DISCO C:", f"{int(d['pct'])}%",
+                f"{self.format_size(d['used'])} / {self.format_size(d['total'])}",
+            )
+        self._home_disk_bar.setValue(int(d["pct"]))
+        live_row.addWidget(disk_card)
+
+        panel_lyt.addLayout(live_row)
+
+        # Linha de cards de AÇÃO — responsiva: 1×4 quando largo, 2×2 quando estreito
+        action_cards = [
+            self._home_card_limpeza(),
+            self._home_card_otimizacao(),
+            self._home_card_reparos(),
+            self._home_card_gamer(),
+        ]
+        actions_row = ResponsiveCardRow(action_cards, breakpoint_px=900, spacing=12)
+        panel_lyt.addWidget(actions_row)
+        panel_lyt.addStretch(1)
+
+        self.content_lyt.addWidget(panel, 1)
+
+        # Inicia o timer de métricas live
+        self._metrics_timer = QTimer(self)
+        self._metrics_timer.timeout.connect(self._update_home_live_metrics)
+        self._metrics_timer.start(1000)
+        self._update_home_live_metrics()
+
+    def _build_live_card(self, title: str, initial_pct: str, initial_sub: str):
+        """Card com título, % grande, barra de progresso e sublabel.
+
+        Retorna (card, metric_label, progress_bar, sub_label) — refs
+        para atualização via timer.
+        """
+        card = Card()
+        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        card.layout().setSpacing(6)
+
+        title_lbl = QLabel(title)
+        title_lbl.setStyleSheet(
+            f"color: {Palette.ACCENT_CYAN}; font-family: 'Segoe UI'; "
+            f"font-size: 11px; font-weight: bold; letter-spacing: 1px;"
+            f" background: transparent;"
+        )
+        card.add(title_lbl)
+
+        metric = QLabel(initial_pct)
+        metric.setFont(QFont("Segoe UI", 26, QFont.Bold))
+        metric.setStyleSheet(f"color: {Palette.FG_PRIMARY}; background: transparent;")
+        card.add(metric)
+
+        bar = QProgressBar()
+        bar.setFixedHeight(8)
+        bar.setTextVisible(False)
+        bar.setRange(0, 100)
+        bar.setValue(0)
+        bar.setStyleSheet(
+            f"QProgressBar {{"
+            f"  background: #04060a; border: 1px solid {Palette.BORDER_SUBTLE};"
+            f"  border-radius: 4px;"
+            f"}}"
+            f"QProgressBar::chunk {{"
+            f"  background: {Palette.ACCENT_CYAN}; border-radius: 3px;"
+            f"}}"
+        )
+        card.add(bar)
+
+        sub_lbl = QLabel(initial_sub)
+        sub_lbl.setStyleSheet(
+            f"color: {Palette.FG_MUTED}; font-family: 'Consolas'; "
+            f"font-size: 10px; background: transparent;"
+        )
+        sub_lbl.setWordWrap(True)
+        card.add(sub_lbl)
+
+        return card, metric, bar, sub_lbl
+
+    def _update_home_live_metrics(self):
+        if not self._is_widget_alive(getattr(self, "_home_cpu_bar", None)):
+            return
+
+        cpu = cpu_pct()
+        if self._is_widget_alive(self._home_cpu_metric):
+            self._home_cpu_metric.setText(f"{cpu:.0f}%")
+        self._home_cpu_bar.setValue(int(cpu))
+
+        m = mem_live()
+        if self._is_widget_alive(self._home_ram_metric):
+            self._home_ram_metric.setText(f"{int(m['pct'])}%")
+        if self._is_widget_alive(self._home_ram_bar):
+            self._home_ram_bar.setValue(int(m["pct"]))
+        if self._is_widget_alive(self._home_ram_sub):
+            self._home_ram_sub.setText(
+                f"{self.format_size(m['used'])} / {self.format_size(m['total'])}"
+            )
+
+        d = disk_c_info()
+        if self._is_widget_alive(self._home_disk_metric):
+            self._home_disk_metric.setText(f"{int(d['pct'])}%")
+        if self._is_widget_alive(self._home_disk_bar):
+            self._home_disk_bar.setValue(int(d["pct"]))
+        if self._is_widget_alive(self._home_disk_sub):
+            self._home_disk_sub.setText(
+                f"{self.format_size(d['used'])} / {self.format_size(d['total'])}"
+            )
+
+    def _get_disk_info(self) -> tuple[int, int]:
+        """Retorna (free_bytes, total_bytes) do disco C:. (0, 0) em falha."""
+        total = ctypes.c_ulonglong(0)
+        free = ctypes.c_ulonglong(0)
+        try:
+            ctypes.windll.kernel32.GetDiskFreeSpaceExW(
+                ctypes.c_wchar_p("C:\\"),
+                None,
+                ctypes.pointer(total),
+                ctypes.pointer(free),
+            )
+            return (free.value, total.value)
+        except Exception:
+            return (0, 0)
+
+    def _home_section_title(self, text: str, color: str) -> QLabel:
+        lbl = QLabel(text)
+        lbl.setStyleSheet(
+            f"color: {color}; font-family: 'Segoe UI'; font-size: 11px;"
+            f" font-weight: bold; letter-spacing: 1px; background: transparent;"
+        )
+        return lbl
+
+    def _home_desc(self, text: str) -> QLabel:
+        lbl = QLabel(text)
+        lbl.setStyleSheet(
+            f"color: {Palette.FG_MUTED}; font-family: 'Segoe UI'; "
+            f"font-size: 11px; background: transparent;"
+        )
+        lbl.setAlignment(Qt.AlignCenter)
+        lbl.setWordWrap(True)
+        return lbl
+
+    def _home_cta(self, text: str, color: str, handler) -> QPushButton:
+        btn = QPushButton(text)
+        btn.setCursor(QCursor(Qt.PointingHandCursor))
+        btn.setFixedHeight(36)
+        btn.setStyleSheet(
+            f"QPushButton {{"
+            f"  background: {color}; color: #030407; border: none;"
+            f"  border-radius: 6px; padding: 0 16px;"
+            f"  font-family: 'Segoe UI'; font-size: 12px; font-weight: bold;"
+            f"}}"
+            f"QPushButton:hover {{ background: white; }}"
+        )
+        btn.clicked.connect(handler)
+        return btn
+
+    def _home_card_limpeza(self) -> HeroCard:
+        card = HeroCard(accent_color=Palette.ACCENT_CYAN)
+        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        card.add(self._home_section_title("LIMPEZA", Palette.ACCENT_CYAN))
+        card.add_stretch(1)
+
+        free, total = self._get_disk_info()
+        if total > 0:
+            used_str = self.format_size(total - free)
+            value, unit = used_str.rsplit(" ", 1)
+            card.add(MetricLabel(value, unit))
+            card.add(self._home_desc(f"usados de {self.format_size(total)}"))
+        else:
+            card.add(MetricLabel("—"))
+            card.add(self._home_desc("disco indisponível"))
+
+        card.add_stretch(1)
+        card.add(self._home_cta("Limpar", Palette.ACCENT_CYAN, self.show_limpeza))
+        return card
+
+    def _home_card_otimizacao(self) -> HeroCard:
+        card = HeroCard(accent_color=Palette.ACCENT_CYAN)
+        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        card.add(self._home_section_title("OTIMIZAÇÃO", Palette.ACCENT_CYAN))
+        card.add_stretch(1)
+
+        state = _load_optimize_state()
+        saved = state.get("user_selections") or {}
+        if saved:
+            selected = sum(1 for v in saved.values() if v)
+        else:
+            selected = sum(1 for c in _OPTIMIZE_CATEGORIES if c["default"])
+        total = len(_OPTIMIZE_CATEGORIES)
+
+        card.add(MetricLabel(f"{selected} de {total}"))
+        label = "otimização selecionada" if selected == 1 else "otimizações selecionadas"
+        card.add(self._home_desc(label))
+
+        card.add_stretch(1)
+        card.add(self._home_cta("Otimizar", Palette.ACCENT_CYAN, self.show_otimizacao))
+        return card
+
+    def _home_card_reparos(self) -> HeroCard:
+        card = HeroCard(accent_color=Palette.ACCENT_CYAN)
+        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        card.add(self._home_section_title("REPAROS", Palette.ACCENT_CYAN))
+        card.add_stretch(1)
+
+        n = len(_REPAIR_TOOLS)
+        card.add(MetricLabel(str(n)))
+        noun = "ferramenta disponível" if n == 1 else "ferramentas disponíveis"
+        card.add(self._home_desc(noun))
+
+        card.add_stretch(1)
+        card.add(self._home_cta("Abrir", Palette.ACCENT_CYAN, self.show_reparos))
+        return card
+
+    def _home_card_gamer(self) -> HeroCard:
+        card = HeroCard(accent_color=Palette.ACCENT_PURPLE)
+        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        card.add(self._home_section_title("MODO GAMER", Palette.ACCENT_PURPLE))
+        card.add_stretch(1)
+
+        active = self.gamer_engine.is_active()
+        metric = MetricLabel("● ATIVO" if active else "● INATIVO")
+        metric.setStyleSheet(
+            f"color: {Palette.STATE_ON if active else Palette.FG_MUTED};"
+            f" background: transparent;"
+        )
+        card.add(metric)
+        card.add(self._home_desc(
+            "otimizações para jogos aplicadas" if active else "pronto para ativar"
+        ))
+
+        card.add_stretch(1)
+        card.add(self._home_cta("Abrir", Palette.ACCENT_PURPLE, self.show_gamer))
+        return card
+
+    # ═══════════════════════════════════════════════════════════════════
+    # ESPECIFICAÇÕES
+    # ═══════════════════════════════════════════════════════════════════
+    def show_specs(self):
+        self.clear_screen()
+        self._stop_metrics_timer()
+
+        panel = QWidget()
+        panel.setStyleSheet("background: transparent;")
+        panel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        panel_lyt = QVBoxLayout(panel)
+        panel_lyt.setContentsMargins(32, 22, 32, 22)
+        panel_lyt.setSpacing(10)
+        panel_lyt.setAlignment(Qt.AlignTop)
+
+        title = QLabel("ESPECIFICAÇÕES")
+        title.setFont(QFont("Segoe UI", 22, QFont.Bold))
+        title.setStyleSheet(f"color: {Palette.FG_PRIMARY}; background: transparent;")
+        panel_lyt.addWidget(title)
+
+        sub = QLabel("Visão completa do sistema · atualizada em tempo real")
+        sub.setStyleSheet(
+            f"color: {Palette.FG_MUTED}; font-family: 'Segoe UI'; "
+            f"font-size: 12px; background: transparent;"
+        )
+        panel_lyt.addWidget(sub)
+        panel_lyt.addSpacing(4)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet(
+            "QScrollArea { border: none; background: transparent; }"
+            "QScrollBar:vertical { width: 6px; background: #111; border-radius: 3px; }"
+            "QScrollBar::handle:vertical { background: #0eb3ff; border-radius: 3px; }"
+        )
+        inner = QWidget()
+        inner.setStyleSheet("background: transparent;")
+        inner_lyt = QVBoxLayout(inner)
+        inner_lyt.setSpacing(12)
+        inner_lyt.setContentsMargins(0, 0, 8, 0)
+
+        grid = QGridLayout()
+        grid.setSpacing(12)
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.addWidget(self._spec_card_os(),        0, 0)
+        grid.addWidget(self._spec_card_mobo(),      0, 1)
+        grid.addWidget(self._spec_card_cpu(),       1, 0)
+        grid.addWidget(self._spec_card_gpu(),       1, 1)
+        grid.addWidget(self._spec_card_ram(),       2, 0)
+        grid.addWidget(self._spec_card_disks(),     2, 1)
+        grid.addWidget(self._spec_card_processes(), 3, 0, 1, 2)
+        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(1, 1)
+        inner_lyt.addLayout(grid)
+        inner_lyt.addStretch(1)
+        scroll.setWidget(inner)
+        panel_lyt.addWidget(scroll, 1)
+
+        self.content_lyt.addWidget(panel, 1)
+
+        # Hardware lento via WMI (cacheado depois da primeira chamada)
+        self._start_hardware_worker()
+
+        # Live metrics: CPU live + RAM live
+        self._metrics_timer = QTimer(self)
+        self._metrics_timer.timeout.connect(self._update_specs_live_metrics)
+        self._metrics_timer.start(1500)
+        self._update_specs_live_metrics()
+
+    def _spec_title(self, text: str) -> QLabel:
+        lbl = QLabel(text)
+        lbl.setStyleSheet(
+            f"color: {Palette.ACCENT_CYAN}; font-family: 'Segoe UI'; "
+            f"font-size: 11px; font-weight: bold; letter-spacing: 1px;"
+            f" background: transparent;"
+        )
+        return lbl
+
+    def _kv_html(self, key: str, value: str) -> str:
+        return f"<span style='color:{Palette.FG_MUTED};'>{key}</span>&nbsp;&nbsp;{value}"
+
+    def _spec_kv(self, key: str, value: str) -> QLabel:
+        lbl = QLabel(self._kv_html(key, value))
+        lbl.setTextFormat(Qt.RichText)
+        lbl.setWordWrap(True)
+        lbl.setStyleSheet(
+            f"color: {Palette.FG_BODY}; font-family: 'Segoe UI'; "
+            f"font-size: 11px; background: transparent;"
+        )
+        return lbl
+
+    def _spec_bar_style(self) -> str:
+        return (
+            f"QProgressBar {{"
+            f"  background: #04060a; border: 1px solid {Palette.BORDER_SUBTLE};"
+            f"  border-radius: 4px;"
+            f"}}"
+            f"QProgressBar::chunk {{"
+            f"  background: {Palette.ACCENT_CYAN}; border-radius: 3px;"
+            f"}}"
+        )
+
+    def _spec_card_os(self) -> Card:
+        card = Card()
+        card.layout().setSpacing(4)
+        card.add(self._spec_title("SISTEMA OPERACIONAL"))
+        info = os_info()
+        card.add(self._spec_kv("Sistema",     info["system"]))
+        card.add(self._spec_kv("Build",       info["version"]))
+        card.add(self._spec_kv("Arquitetura", info["arch"]))
+        card.add(self._spec_kv("Usuário",     info["user"]))
+        card.add(self._spec_kv("Máquina",     info["machine"]))
+        return card
+
+    def _spec_card_mobo(self) -> Card:
+        card = Card()
+        card.layout().setSpacing(4)
+        card.add(self._spec_title("PLACA-MÃE"))
+        self._specs_mobo_man   = self._spec_kv("Fabricante", "detectando…")
+        self._specs_mobo_model = self._spec_kv("Modelo",     "detectando…")
+        self._specs_bios       = self._spec_kv("BIOS",       "detectando…")
+        card.add(self._specs_mobo_man)
+        card.add(self._specs_mobo_model)
+        card.add(self._specs_bios)
+        return card
+
+    def _spec_card_cpu(self) -> Card:
+        card = Card()
+        card.layout().setSpacing(4)
+        card.add(self._spec_title("PROCESSADOR"))
+        cpu = cpu_static()
+        card.add(self._spec_kv("Modelo",     cpu["name"]))
+        card.add(self._spec_kv("Frequência", cpu["freq"]))
+        card.add(self._spec_kv("Núcleos",    str(cpu["cores"])))
+        card.add(self._spec_kv("Threads",    str(cpu["threads"])))
+
+        self._specs_cpu_pct_label = QLabel("Uso atual · 0%")
+        self._specs_cpu_pct_label.setStyleSheet(
+            f"color: {Palette.FG_MUTED}; font-family: 'Consolas'; "
+            f"font-size: 11px; background: transparent;"
+        )
+        card.add_spacing(2)
+        card.add(self._specs_cpu_pct_label)
+
+        self._specs_cpu_bar = QProgressBar()
+        self._specs_cpu_bar.setFixedHeight(8)
+        self._specs_cpu_bar.setTextVisible(False)
+        self._specs_cpu_bar.setRange(0, 100)
+        self._specs_cpu_bar.setStyleSheet(self._spec_bar_style())
+        card.add(self._specs_cpu_bar)
+        return card
+
+    def _spec_card_gpu(self) -> Card:
+        card = Card()
+        card.layout().setSpacing(4)
+        card.add(self._spec_title("PLACA DE VÍDEO"))
+        self._specs_gpu_name   = self._spec_kv("Modelo",  "detectando…")
+        self._specs_gpu_vram   = self._spec_kv("Memória", "detectando…")
+        self._specs_gpu_driver = self._spec_kv("Driver",  "detectando…")
+        card.add(self._specs_gpu_name)
+        card.add(self._specs_gpu_vram)
+        card.add(self._specs_gpu_driver)
+        return card
+
+    def _spec_card_ram(self) -> Card:
+        card = Card()
+        card.layout().setSpacing(4)
+        card.add(self._spec_title("MEMÓRIA RAM"))
+        m = mem_live()
+        card.add(self._spec_kv("Total", self.format_size(m["total"])))
+        self._specs_ram_used = self._spec_kv(
+            "Usado", f"{self.format_size(m['used'])} ({m['pct']:.0f}%)"
+        )
+        card.add(self._specs_ram_used)
+
+        card.add_spacing(2)
+        self._specs_ram_bar = QProgressBar()
+        self._specs_ram_bar.setFixedHeight(8)
+        self._specs_ram_bar.setTextVisible(False)
+        self._specs_ram_bar.setRange(0, 100)
+        self._specs_ram_bar.setValue(int(m["pct"]))
+        self._specs_ram_bar.setStyleSheet(self._spec_bar_style())
+        card.add(self._specs_ram_bar)
+        return card
+
+    def _spec_card_disks(self) -> Card:
+        card = Card()
+        card.layout().setSpacing(4)
+        card.add(self._spec_title("DISCOS"))
+        for d in disks_info():
+            line = QLabel(
+                f"<span style='color:{Palette.ACCENT_CYAN}; font-weight:bold;'>{d['drive']}</span>"
+                f"&nbsp;&nbsp;<span style='color:{Palette.FG_MUTED};'>{d['fs']}</span>"
+                f"&nbsp;&nbsp;{self.format_size(d['used'])} usados / "
+                f"{self.format_size(d['total'])}&nbsp;&nbsp;"
+                f"<span style='color:{Palette.FG_MUTED};'>({d['pct']:.0f}%)</span>"
+            )
+            line.setTextFormat(Qt.RichText)
+            line.setStyleSheet(
+                f"color: {Palette.FG_BODY}; font-family: 'Consolas'; "
+                f"font-size: 10px; background: transparent;"
+            )
+            card.add(line)
+        return card
+
+    def _spec_card_processes(self) -> Card:
+        card = Card()
+        card.layout().setSpacing(4)
+        card.add(self._spec_title("PROCESSOS EM USO"))
+        card.add(self._spec_kv("Total em execução", str(processes_count())))
+
+        top_label = QLabel("Top 5 por consumo de memória")
+        top_label.setStyleSheet(
+            f"color: {Palette.FG_MUTED}; font-family: 'Segoe UI'; "
+            f"font-size: 10px; background: transparent;"
+        )
+        card.add_spacing(2)
+        card.add(top_label)
+
+        for p in top_processes(5):
+            mb = p["mem"] // (1024 * 1024)
+            line = QLabel(
+                f"<span style='color:{Palette.ACCENT_CYAN};'>{p['name']}</span>"
+                f"&nbsp;&nbsp;<span style='color:{Palette.FG_MUTED};'>{mb} MB</span>"
+            )
+            line.setTextFormat(Qt.RichText)
+            line.setStyleSheet(
+                f"color: {Palette.FG_BODY}; font-family: 'Consolas'; "
+                f"font-size: 10px; background: transparent;"
+            )
+            card.add(line)
+        return card
+
+    def _start_hardware_worker(self):
+        cache = getattr(self, "_hardware_cache", None)
+        if cache is not None:
+            self._on_hardware_info(cache)
+            return
+        if getattr(self, "_hardware_worker", None) is not None:
+            return
+        self._hardware_worker = HardwareInfoWorker()
+        self._hardware_worker.finished_info.connect(self._on_hardware_info)
+        self._hardware_worker.start()
+
+    def _on_hardware_info(self, info: dict):
+        self._hardware_cache = info
+        worker = getattr(self, "_hardware_worker", None)
+        if worker is not None:
+            try:
+                worker.wait()
+                worker.deleteLater()
+            except Exception:
+                pass
+            self._hardware_worker = None
+
+        if self._is_widget_alive(getattr(self, "_specs_gpu_name", None)):
+            self._specs_gpu_name.setText(self._kv_html("Modelo", info["gpu_name"]))
+        if self._is_widget_alive(getattr(self, "_specs_gpu_vram", None)):
+            vram = info["gpu_vram"]
+            vram_str = self.format_size(vram) if vram > 0 else "—"
+            self._specs_gpu_vram.setText(self._kv_html("Memória", vram_str))
+        if self._is_widget_alive(getattr(self, "_specs_gpu_driver", None)):
+            self._specs_gpu_driver.setText(self._kv_html("Driver", info["gpu_driver"]))
+        if self._is_widget_alive(getattr(self, "_specs_mobo_man", None)):
+            self._specs_mobo_man.setText(self._kv_html("Fabricante", info["mobo_manufacturer"]))
+        if self._is_widget_alive(getattr(self, "_specs_mobo_model", None)):
+            self._specs_mobo_model.setText(self._kv_html("Modelo", info["mobo_model"]))
+        if self._is_widget_alive(getattr(self, "_specs_bios", None)):
+            self._specs_bios.setText(self._kv_html("BIOS", info["bios_version"]))
+
+    def _update_specs_live_metrics(self):
+        if not self._is_widget_alive(getattr(self, "_specs_cpu_bar", None)):
+            return
+        cpu = cpu_pct()
+        self._specs_cpu_bar.setValue(int(cpu))
+        if self._is_widget_alive(getattr(self, "_specs_cpu_pct_label", None)):
+            self._specs_cpu_pct_label.setText(f"Uso atual · {cpu:.0f}%")
+
+        m = mem_live()
+        if self._is_widget_alive(getattr(self, "_specs_ram_bar", None)):
+            self._specs_ram_bar.setValue(int(m["pct"]))
+        if self._is_widget_alive(getattr(self, "_specs_ram_used", None)):
+            self._specs_ram_used.setText(
+                self._kv_html("Usado", f"{self.format_size(m['used'])} ({m['pct']:.0f}%)")
+            )
 
     # ═══════════════════════════════════════════════════════════════════
     # OTIMIZAÇÃO
     # ═══════════════════════════════════════════════════════════════════
     def show_otimizacao(self):
         self.clear_screen()
-        self.add_title("MÓDULO DE OTIMIZAÇÃO")
-        desc = QLabel("Ajustes persistentes de performance. Totalmente reversíveis.")
-        desc.setStyleSheet("color: #444; margin-bottom: 25px;")
-        self.content_lyt.addWidget(desc, alignment=Qt.AlignCenter)
+        self._stop_metrics_timer()
 
-        self.add_action_btn("OTIMIZAR SISTEMA", lambda: self.run_optimize_process())
+        panel = QWidget()
+        panel.setStyleSheet("background: transparent;")
+        panel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        panel_lyt = QVBoxLayout(panel)
+        panel_lyt.setContentsMargins(32, 24, 32, 24)
+        panel_lyt.setSpacing(14)
+        panel_lyt.setAlignment(Qt.AlignTop)
 
-        btn_adv = QPushButton("CONFIGURAR OTIMIZAÇÃO")
-        btn_adv.setFixedWidth(400)
-        btn_adv.setFixedHeight(42)
-        btn_adv.setStyleSheet(
-            f"background: transparent; border: 1px solid {self.primary}; color: {self.primary};"
-            "font-weight: bold; border-radius: 8px; font-size: 13px;"
+        title = QLabel("OTIMIZAÇÃO")
+        title.setFont(QFont("Segoe UI", 22, QFont.Bold))
+        title.setStyleSheet(f"color: {Palette.FG_PRIMARY}; background: transparent;")
+        panel_lyt.addWidget(title)
+
+        sub = QLabel("Ajustes persistentes de performance · totalmente reversíveis")
+        sub.setStyleSheet(
+            f"color: {Palette.FG_MUTED}; font-family: 'Segoe UI'; "
+            f"font-size: 12px; background: transparent;"
         )
-        btn_adv.clicked.connect(self.show_otimizacao_avancada)
-        self.content_lyt.addWidget(btn_adv, alignment=Qt.AlignCenter)
+        panel_lyt.addWidget(sub)
+        panel_lyt.addSpacing(4)
 
-        self.content_lyt.addSpacing(6)
+        panel_lyt.addWidget(self._otimizacao_hero())
+        panel_lyt.addLayout(self._otimizacao_chips_row())
 
-        btn_revert = QPushButton("Restaurar padrões do Windows")
-        btn_revert.setFixedWidth(280)
-        btn_revert.setStyleSheet(
+        self.content_lyt.addWidget(panel, 1)
+        self._set_status_bar("optimize", "> Nenhuma otimização realizada ainda.")
+
+    def _otimizacao_hero(self) -> HeroCard:
+        """Hero card com contador de otimizações selecionadas + CTAs."""
+        hero = HeroCard(accent_color=Palette.ACCENT_CYAN)
+        hero.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+
+        section = QLabel("OTIMIZAR SISTEMA")
+        section.setAlignment(Qt.AlignCenter)
+        section.setStyleSheet(
+            f"color: {Palette.ACCENT_CYAN}; font-family: 'Segoe UI'; font-size: 11px;"
+            f" font-weight: bold; letter-spacing: 1px; background: transparent;"
+        )
+        hero.add(section)
+
+        state = _load_optimize_state()
+        saved = state.get("user_selections") or {}
+        if saved:
+            selected = sum(1 for v in saved.values() if v)
+        else:
+            selected = sum(1 for c in _OPTIMIZE_CATEGORIES if c["default"])
+        total_cats = len(_OPTIMIZE_CATEGORIES)
+
+        hero.add(MetricLabel(f"{selected} de {total_cats}"))
+        noun = "otimização selecionada" if selected == 1 else "otimizações selecionadas"
+        desc = QLabel(noun)
+        desc.setAlignment(Qt.AlignCenter)
+        desc.setStyleSheet(
+            f"color: {Palette.FG_MUTED}; font-family: 'Segoe UI'; "
+            f"font-size: 11px; background: transparent;"
+        )
+        hero.add(desc)
+        hero.add_spacing(6)
+
+        btn = QPushButton("OTIMIZAR SISTEMA")
+        btn.setFixedWidth(400)
+        btn.setCursor(QCursor(Qt.PointingHandCursor))
+        btn.setStyleSheet(
+            f"QPushButton {{"
+            f"  background-color: {self.primary}; color: black; font-weight: bold;"
+            f"  border-radius: 8px; padding: 12px; border: none; font-size: 14px;"
+            f"}}"
+            f"QPushButton:hover {{ background-color: white; }}"
+        )
+        btn.clicked.connect(lambda: self.run_optimize_process())
+        self.add_neon(btn, self.primary)
+        hero.add(btn, alignment=Qt.AlignCenter)
+
+        cfg = QPushButton("Configurar ajustes →")
+        cfg.setFixedWidth(260)
+        cfg.setCursor(QCursor(Qt.PointingHandCursor))
+        cfg.setStyleSheet(
+            f"background:transparent; color:{Palette.ACCENT_CYAN}; "
+            f"border:1px solid {Palette.ACCENT_CYAN};"
+            f"border-radius:6px; padding:6px; font-family:'Segoe UI'; font-size:11px;"
+        )
+        cfg.clicked.connect(self.show_otimizacao_avancada)
+        hero.add(cfg, alignment=Qt.AlignCenter)
+
+        revert = QPushButton("Restaurar padrões do Windows")
+        revert.setFixedWidth(260)
+        revert.setCursor(QCursor(Qt.PointingHandCursor))
+        revert.setStyleSheet(
             "background: transparent; border: 1px solid #666; color: #888;"
             "font-weight: bold; border-radius: 6px; font-size: 11px; padding: 6px;"
         )
-        btn_revert.clicked.connect(self._confirm_revert_optimize)
-        self.content_lyt.addWidget(btn_revert, alignment=Qt.AlignCenter)
+        revert.clicked.connect(self._confirm_revert_optimize)
+        hero.add(revert, alignment=Qt.AlignCenter)
 
-        self._set_status_bar("optimize", "> Nenhuma otimização realizada ainda.")
+        return hero
+
+    _OPTIMIZE_CHIP_LABELS = {
+        "power_ultimate":    "Desempenho Máximo",
+        "disk_optimize":     "Otimização de Disco",
+        "hibernate_off":     "Hibernação",
+        "telemetry_disable": "Telemetria",
+    }
+
+    def _otimizacao_chips_row(self) -> QHBoxLayout:
+        """Linha de chips mostrando o estado selecionado de cada ajuste."""
+        state = _load_optimize_state()
+        saved = state.get("user_selections") or {}
+
+        row = QHBoxLayout()
+        row.setSpacing(8)
+        row.addStretch(1)
+        for cat in _OPTIMIZE_CATEGORIES:
+            cid = cat["id"]
+            label = self._OPTIMIZE_CHIP_LABELS.get(cid, cat["label"])
+            if saved:
+                is_on = bool(saved.get(cid, False))
+            else:
+                is_on = bool(cat["default"])
+            row.addWidget(Chip(label, state=("on" if is_on else "off")))
+        row.addStretch(1)
+        return row
 
     def show_otimizacao_avancada(self):
         self.clear_screen()
@@ -1400,7 +2374,8 @@ class TecnoApp(QMainWindow):
     def _save_optimize_and_return(self):
         self._save_optimize_selections()
         selected = sum(1 for cb in self._optimize_checkboxes.values() if cb.isChecked())
-        self._pending_status["optimize"] = f"> ✓ Preferências salvas ({selected} otimizações)"
+        noun = "otimização selecionada" if selected == 1 else "otimizações selecionadas"
+        self._pending_status["optimize"] = f"> ✓ Preferências salvas ({selected} {noun})"
         self.show_otimizacao()
 
     def run_optimize_process(self, selected_ids=None, mode: str = "apply"):
@@ -1486,41 +2461,77 @@ class TecnoApp(QMainWindow):
         self.content_lyt.addWidget(self._optimize_btn_voltar, alignment=Qt.AlignCenter)
 
     def _on_optimize_step(self, label: str, ok: bool, detail: str):
+        log_label = getattr(self, "_optimize_log_label", None)
+        if not self._is_widget_alive(log_label):
+            return
         mark = "✓" if ok else "✗"
         extra = f"   ({detail})" if detail else ""
         self._optimize_log_lines.append(f"{mark}  {label}{extra}")
-        self._optimize_log_label.setText("\n".join(self._optimize_log_lines))
+        log_label.setText("\n".join(self._optimize_log_lines))
 
     def _on_optimize_done(self, applied: int, failed: int):
         if self._optimize_worker is not None:
-            self._optimize_worker.wait()
-            self._optimize_worker.deleteLater()
+            try:
+                self._optimize_worker.wait()
+                self._optimize_worker.deleteLater()
+            except Exception:
+                pass
             self._optimize_worker = None
-        if failed == 0 and applied > 0:
-            msg = f"✓  {applied} ajuste(s) aplicado(s) com sucesso"
-        elif applied == 0:
-            msg = "Nenhum ajuste foi aplicado"
+
+        if applied > 0 and failed == 0:
+            noun = "otimização aplicada" if applied == 1 else "otimizações aplicadas"
+            msg = f"✓  {applied} {noun}"
+        elif applied > 0 and failed > 0:
+            a_word = "aplicada" if applied == 1 else "aplicadas"
+            f_word = "falha" if failed == 1 else "falhas"
+            msg = f"⚠  {applied} {a_word}, {failed} com {f_word}"
+        elif failed > 0:
+            noun = "otimização" if failed == 1 else "otimizações"
+            msg = f"✗  Falha em {failed} {noun}"
         else:
-            msg = f"{applied} aplicado(s) · {failed} falha(s)"
-        self._optimize_total_label.setText(msg)
-        self._optimize_total_label.show()
-        self.add_neon(self._optimize_total_label, self.primary)
-        self._optimize_btn_voltar.setEnabled(True)
-        self._optimize_btn_voltar.setStyleSheet(
-            f"background: transparent; border: 1px solid {self.primary}; color: {self.primary};"
-            "font-weight: bold; border-radius: 8px; padding: 10px;"
-        )
+            msg = "Nenhuma otimização selecionada"
         _save_module_status("optimize", msg)
+
+        total_label = getattr(self, "_optimize_total_label", None)
+        btn_voltar  = getattr(self, "_optimize_btn_voltar",  None)
+        if self._is_widget_alive(total_label):
+            total_label.setText(msg)
+            total_label.show()
+            self.add_neon(total_label, self.primary)
+        if self._is_widget_alive(btn_voltar):
+            btn_voltar.setEnabled(True)
+            btn_voltar.setStyleSheet(
+                f"background: transparent; border: 1px solid {self.primary}; color: {self.primary};"
+                "font-weight: bold; border-radius: 8px; padding: 10px;"
+            )
 
     # ═══════════════════════════════════════════════════════════════════
     # REPAROS
     # ═══════════════════════════════════════════════════════════════════
     def show_reparos(self):
         self.clear_screen()
-        self.add_title("CENTRAL DE REPAROS")
-        desc = QLabel("Cada reparo é independente. Escolha conforme o problema.")
-        desc.setStyleSheet("color: #444; margin-bottom: 15px;")
-        self.content_lyt.addWidget(desc, alignment=Qt.AlignCenter)
+        self._stop_metrics_timer()
+
+        panel = QWidget()
+        panel.setStyleSheet("background: transparent;")
+        panel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        panel_lyt = QVBoxLayout(panel)
+        panel_lyt.setContentsMargins(32, 24, 32, 24)
+        panel_lyt.setSpacing(10)
+        panel_lyt.setAlignment(Qt.AlignTop)
+
+        title = QLabel("REPAROS")
+        title.setFont(QFont("Segoe UI", 22, QFont.Bold))
+        title.setStyleSheet(f"color: {Palette.FG_PRIMARY}; background: transparent;")
+        panel_lyt.addWidget(title)
+
+        sub = QLabel("Cada reparo é independente · escolha conforme o problema")
+        sub.setStyleSheet(
+            f"color: {Palette.FG_MUTED}; font-family: 'Segoe UI'; "
+            f"font-size: 12px; background: transparent;"
+        )
+        panel_lyt.addWidget(sub)
+        panel_lyt.addSpacing(4)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -1532,78 +2543,112 @@ class TecnoApp(QMainWindow):
         inner = QWidget()
         inner.setStyleSheet("background: transparent;")
         inner_lyt = QVBoxLayout(inner)
-        inner_lyt.setSpacing(6)
-        inner_lyt.setContentsMargins(4, 4, 4, 4)
+        inner_lyt.setSpacing(8)
+        inner_lyt.setContentsMargins(0, 0, 8, 0)
 
         essentials = [t for t in _REPAIR_TOOLS if t["category"] == "essential"]
         advanced   = [t for t in _REPAIR_TOOLS if t["category"] == "advanced"]
 
         hdr1 = QLabel("── ESSENCIAIS")
-        hdr1.setStyleSheet(f"color: {self.primary}; font-weight: bold; font-size: 11px; margin-top: 4px;")
+        hdr1.setStyleSheet(
+            f"color: {Palette.ACCENT_CYAN}; font-family: 'Segoe UI'; font-size: 11px;"
+            f" font-weight: bold; letter-spacing: 1px; background: transparent;"
+        )
         inner_lyt.addWidget(hdr1)
-        for tool in essentials:
-            inner_lyt.addWidget(self._build_repair_row(tool))
+        inner_lyt.addLayout(self._repair_grid(essentials))
+
+        inner_lyt.addSpacing(8)
 
         hdr2 = QLabel("── AVANÇADOS")
-        hdr2.setStyleSheet("color: #ffbd2e; font-weight: bold; font-size: 11px; margin-top: 10px;")
-        inner_lyt.addWidget(hdr2)
-        for tool in advanced:
-            inner_lyt.addWidget(self._build_repair_row(tool))
-
-        inner_lyt.addStretch()
-        scroll.setWidget(inner)
-        self.content_lyt.addWidget(scroll, 1)
-
-        self._set_status_bar("repair", "> Escolha um reparo.")
-
-    def _build_repair_row(self, tool):
-        row = QFrame()
-        row.setStyleSheet(
-            "QFrame { background: #0a0d14; border: 1px solid #1a1f2b; border-radius: 6px; }"
+        hdr2.setStyleSheet(
+            f"color: {Palette.STATE_WARN}; font-family: 'Segoe UI'; font-size: 11px;"
+            f" font-weight: bold; letter-spacing: 1px; background: transparent;"
         )
-        lyt = QVBoxLayout(row)
-        lyt.setContentsMargins(10, 8, 10, 8)
-        lyt.setSpacing(2)
+        inner_lyt.addWidget(hdr2)
+        inner_lyt.addLayout(self._repair_grid(advanced))
 
-        top = QHBoxLayout()
-        top.setContentsMargins(0, 0, 0, 0)
+        inner_lyt.addStretch(1)
+        scroll.setWidget(inner)
+        panel_lyt.addWidget(scroll, 1)
+
+        self.content_lyt.addWidget(panel, 1)
+        self._set_status_bar("repair", "> Nenhum reparo executado ainda.")
+
+    def _repair_grid(self, tools: list) -> QGridLayout:
+        """Grid 2-colunas com cards dos reparos fornecidos."""
+        grid = QGridLayout()
+        grid.setSpacing(10)
+        grid.setContentsMargins(0, 0, 0, 0)
+        for i, tool in enumerate(tools):
+            r, c = divmod(i, 2)
+            grid.addWidget(self._build_repair_card(tool), r, c)
+        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(1, 1)
+        return grid
+
+    def _build_repair_card(self, tool) -> Card:
+        """Card individual de uma ferramenta de reparo."""
+        card = Card()
+        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        card.layout().setContentsMargins(14, 12, 14, 12)
+        card.layout().setSpacing(6)
+
         title = QLabel(tool["label"])
-        title.setStyleSheet("color: white; font-family: 'Segoe UI'; font-size: 12px; font-weight: bold;")
-        top.addWidget(title, 1)
+        title.setWordWrap(True)
+        title.setStyleSheet(
+            f"color: {Palette.FG_PRIMARY}; font-family: 'Segoe UI'; "
+            f"font-size: 12px; font-weight: bold; background: transparent;"
+        )
+        card.add(title)
 
         tags = [tool["duration"]]
         if tool["reboot"]:
             tags.append("REBOOT")
         tag = QLabel(" · ".join(tags))
-        tag.setStyleSheet("color: #0eb3ff; font-family: 'Consolas'; font-size: 10px;")
-        top.addWidget(tag)
-        lyt.addLayout(top)
+        tag.setStyleSheet(
+            f"color: {Palette.ACCENT_CYAN}; font-family: 'Consolas'; "
+            f"font-size: 10px; background: transparent;"
+        )
+        card.add(tag)
 
         desc = QLabel(tool["desc"])
         desc.setWordWrap(True)
-        desc.setStyleSheet("color: #888; font-family: 'Segoe UI'; font-size: 10px;")
-        lyt.addWidget(desc)
+        desc.setStyleSheet(
+            f"color: {Palette.FG_MUTED}; font-family: 'Segoe UI'; "
+            f"font-size: 10px; background: transparent;"
+        )
+        card.add(desc)
 
         if tool.get("warning"):
             warn = QLabel("⚠ " + tool["warning"])
             warn.setWordWrap(True)
-            warn.setStyleSheet("color: #ff8a4b; font-family: 'Segoe UI'; font-size: 10px;")
-            lyt.addWidget(warn)
+            warn.setStyleSheet(
+                f"color: #ff8a4b; font-family: 'Segoe UI'; "
+                f"font-size: 10px; background: transparent;"
+            )
+            card.add(warn)
+
+        card.add_stretch(1)
 
         btn_row = QHBoxLayout()
         btn_row.addStretch(1)
         btn = QPushButton("Executar")
         btn.setFixedWidth(110)
+        btn.setCursor(QCursor(Qt.PointingHandCursor))
         btn.setStyleSheet(
-            f"background: {self.primary}; color: #030407; border: none;"
-            "border-radius: 5px; padding: 6px; font-family: 'Segoe UI'; font-weight: bold; font-size: 11px;"
+            f"QPushButton {{"
+            f"  background: {self.primary}; color: #030407; border: none;"
+            f"  border-radius: 5px; padding: 6px; font-family: 'Segoe UI'; "
+            f"  font-weight: bold; font-size: 11px;"
+            f"}}"
+            f"QPushButton:hover {{ background: white; }}"
         )
         tid = tool["id"]
         btn.clicked.connect(lambda _=False, t=tid: self._confirm_repair(t))
         btn_row.addWidget(btn)
-        lyt.addLayout(btn_row)
+        card.layout().addLayout(btn_row)
 
-        return row
+        return card
 
     def _confirm_repair(self, tool_id: str):
         tool = next((t for t in _REPAIR_TOOLS if t["id"] == tool_id), None)
@@ -1686,84 +2731,169 @@ class TecnoApp(QMainWindow):
         self.content_lyt.addWidget(self._repair_btn_voltar, alignment=Qt.AlignCenter)
 
     def _on_repair_step(self, label: str, ok: bool, detail: str):
+        log_label = getattr(self, "_repair_log_label", None)
+        if not self._is_widget_alive(log_label):
+            return
         mark = "✓" if ok else "✗"
         extra = f"   ({detail})" if detail else ""
         self._repair_log_lines.append(f"{mark}  {label}{extra}")
-        self._repair_log_label.setText("\n".join(self._repair_log_lines))
+        log_label.setText("\n".join(self._repair_log_lines))
 
     def _on_repair_done(self, overall_ok: bool, summary: str):
         if self._repair_worker is not None:
-            self._repair_worker.wait()
-            self._repair_worker.deleteLater()
+            try:
+                self._repair_worker.wait()
+                self._repair_worker.deleteLater()
+            except Exception:
+                pass
             self._repair_worker = None
-        self._repair_summary_label.setText(summary)
-        color = self.primary if overall_ok else "#ff8a4b"
-        self._repair_summary_label.setStyleSheet(f"color: {color}; margin-top: 8px;")
-        self._repair_summary_label.show()
-        self.add_neon(self._repair_summary_label, color)
-        self._repair_btn_voltar.setEnabled(True)
-        self._repair_btn_voltar.setStyleSheet(
-            f"background: transparent; border: 1px solid {self.primary}; color: {self.primary};"
-            "font-weight: bold; border-radius: 8px; padding: 10px;"
-        )
+
         _save_module_status("repair", summary)
+        color = self.primary if overall_ok else "#ff8a4b"
+
+        summary_label = getattr(self, "_repair_summary_label", None)
+        btn_voltar    = getattr(self, "_repair_btn_voltar",    None)
+        if self._is_widget_alive(summary_label):
+            summary_label.setText(summary)
+            summary_label.setStyleSheet(f"color: {color}; margin-top: 8px;")
+            summary_label.show()
+            self.add_neon(summary_label, color)
+        if self._is_widget_alive(btn_voltar):
+            btn_voltar.setEnabled(True)
+            btn_voltar.setStyleSheet(
+                f"background: transparent; border: 1px solid {self.primary}; color: {self.primary};"
+                "font-weight: bold; border-radius: 8px; padding: 10px;"
+            )
     def show_gamer(self):
         self.clear_screen()
-        self.add_title("MODO GAMER", self.secondary)
+        self._stop_metrics_timer()
 
         active = self.gamer_engine.is_active()
         snapshot = self.gamer_engine.active_snapshot() if active else None
 
-        if active and snapshot:
-            status_txt = f"● ATIVO desde {snapshot.created_at}"
-            status_color = self.primary
-        else:
-            status_txt = "● INATIVO"
-            status_color = "#666"
+        panel = QWidget()
+        panel.setStyleSheet("background: transparent;")
+        panel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        panel_lyt = QVBoxLayout(panel)
+        panel_lyt.setContentsMargins(32, 24, 32, 24)
+        panel_lyt.setSpacing(14)
+        panel_lyt.setAlignment(Qt.AlignTop)
 
-        self.gamer_status = QLabel(status_txt)
-        self.gamer_status.setStyleSheet(
-            f"color: {status_color}; font-family: 'Consolas'; font-size: 13px; font-weight: bold;"
+        title = QLabel("MODO GAMER")
+        title.setFont(QFont("Segoe UI", 22, QFont.Bold))
+        title.setAlignment(Qt.AlignCenter)
+        title.setStyleSheet(f"color: {Palette.ACCENT_PURPLE}; background: transparent;")
+        self.add_neon(title, Palette.ACCENT_PURPLE)
+        panel_lyt.addWidget(title)
+
+        hero = HeroCard(accent_color=Palette.ACCENT_PURPLE)
+        hero.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+
+        metric = MetricLabel("● ATIVO" if active else "● INATIVO")
+        metric.setStyleSheet(
+            f"color: {Palette.STATE_ON if active else Palette.FG_MUTED};"
+            f" background: transparent;"
         )
-        self.content_lyt.addWidget(self.gamer_status, alignment=Qt.AlignCenter)
-        self.content_lyt.addSpacing(15)
+        hero.add(metric)
+
+        if active and snapshot:
+            sub_text = f"desde {snapshot.created_at}"
+        else:
+            sub_text = "pronto para ativar otimizações para jogos"
+        sub = QLabel(sub_text)
+        sub.setAlignment(Qt.AlignCenter)
+        sub.setStyleSheet(
+            f"color: {Palette.FG_MUTED}; font-family: 'Segoe UI'; "
+            f"font-size: 11px; background: transparent;"
+        )
+        hero.add(sub)
+        panel_lyt.addWidget(hero)
 
         if active:
-            self.add_danger_btn("DESATIVAR MODO GAMER", self.run_gamer_deactivate)
+            btn = QPushButton("DESATIVAR MODO GAMER")
+            btn.setStyleSheet(
+                f"QPushButton {{"
+                f"  background-color: {self.danger}; color: white; font-weight: bold;"
+                f"  border-radius: 8px; padding: 12px; border: none; font-size: 14px;"
+                f"}}"
+                f"QPushButton:hover {{ background-color: #ff6b6b; }}"
+            )
+            btn.clicked.connect(self.run_gamer_deactivate)
+            self.add_neon(btn, self.danger)
         else:
-            self.add_action_btn("ATIVAR MODO GAMER", self.run_gamer_activate)
+            btn = QPushButton("ATIVAR MODO GAMER")
+            btn.setStyleSheet(
+                f"QPushButton {{"
+                f"  background-color: {self.primary}; color: black; font-weight: bold;"
+                f"  border-radius: 8px; padding: 12px; border: none; font-size: 14px;"
+                f"}}"
+                f"QPushButton:hover {{ background-color: white; }}"
+            )
+            btn.clicked.connect(self.run_gamer_activate)
+            self.add_neon(btn, self.primary)
+        btn.setCursor(QCursor(Qt.PointingHandCursor))
+        btn.setFixedWidth(400)
+        panel_lyt.addWidget(btn, alignment=Qt.AlignCenter)
 
-        self.content_lyt.addSpacing(10)
-
-        adv = QPushButton("Avançado (granular)")
+        adv = QPushButton("Avançado (granular) →")
         adv.setFixedWidth(260)
         adv.setCursor(QCursor(Qt.PointingHandCursor))
         adv.setStyleSheet(
-            "background:transparent; color:#7000ff; border:1px solid #7000ff;"
-            "border-radius:6px; padding:6px; font-family:'Segoe UI'; font-size:11px;"
+            f"background:transparent; color:{Palette.ACCENT_PURPLE}; "
+            f"border:1px solid {Palette.ACCENT_PURPLE};"
+            f"border-radius:6px; padding:6px; font-family:'Segoe UI'; font-size:11px;"
         )
         adv.clicked.connect(self.show_gamer_advanced)
-        self.content_lyt.addWidget(adv, alignment=Qt.AlignCenter)
+        panel_lyt.addWidget(adv, alignment=Qt.AlignCenter)
 
-        self.content_lyt.addSpacing(15)
+        panel_lyt.addSpacing(4)
+
         grouped = self.gamer_engine.tweaks_by_category()
-        counts = (
-            f"CPU: {len(grouped[Category.CPU])}    "
-            f"GPU: {len(grouped[Category.GPU])}    "
-            f"Sistema: {len(grouped[Category.SYSTEM])}    "
-            f"Rede: {len(grouped[Category.NETWORK])}"
-        )
-        detail = QLabel(counts)
-        detail.setStyleSheet("color: #555; font-family: 'Segoe UI'; font-size: 11px;")
-        self.content_lyt.addWidget(detail, alignment=Qt.AlignCenter)
+        cat_row = QHBoxLayout()
+        cat_row.setSpacing(12)
+        cat_row.addWidget(self._gamer_category_card("CPU",     len(grouped[Category.CPU])))
+        cat_row.addWidget(self._gamer_category_card("GPU",     len(grouped[Category.GPU])))
+        cat_row.addWidget(self._gamer_category_card("SISTEMA", len(grouped[Category.SYSTEM])))
+        cat_row.addWidget(self._gamer_category_card("REDE",    len(grouped[Category.NETWORK])))
+        panel_lyt.addLayout(cat_row)
 
         enabled = load_enabled_optins()
         if enabled:
-            opt_lbl = QLabel(f"opt-in ativos: {', '.join(sorted(enabled))}")
-            opt_lbl.setStyleSheet("color: #7000ff; font-family: 'Consolas'; font-size: 10px;")
-            self.content_lyt.addWidget(opt_lbl, alignment=Qt.AlignCenter)
+            n = len(enabled)
+            noun = "tweak opt-in ativo" if n == 1 else "tweaks opt-in ativos"
+            opt_lbl = QLabel(f"{n} {noun}: {', '.join(sorted(enabled))}")
+            opt_lbl.setAlignment(Qt.AlignCenter)
+            opt_lbl.setWordWrap(True)
+            opt_lbl.setStyleSheet(
+                f"color: {Palette.ACCENT_PURPLE}; font-family: 'Consolas'; "
+                f"font-size: 10px; background: transparent;"
+            )
+            panel_lyt.addWidget(opt_lbl)
 
-        self._set_status_bar("gamer", "> Pronto.")
+        self.content_lyt.addWidget(panel, 1)
+        self._set_status_bar("gamer", "> Modo Gamer nunca foi ativado.")
+
+    def _gamer_category_card(self, name: str, count: int) -> Card:
+        """Mini card: número da contagem + label da categoria."""
+        card = Card()
+        card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        card.layout().setContentsMargins(12, 12, 12, 12)
+        card.layout().setSpacing(2)
+
+        metric = QLabel(str(count))
+        metric.setFont(QFont("Segoe UI", 24, QFont.Bold))
+        metric.setAlignment(Qt.AlignCenter)
+        metric.setStyleSheet(f"color: {Palette.FG_PRIMARY}; background: transparent;")
+        card.add(metric)
+
+        label = QLabel(name)
+        label.setAlignment(Qt.AlignCenter)
+        label.setStyleSheet(
+            f"color: {Palette.ACCENT_PURPLE}; font-family: 'Segoe UI'; "
+            f"font-size: 10px; font-weight: bold; letter-spacing: 1px; background: transparent;"
+        )
+        card.add(label)
+        return card
 
     def show_gamer_advanced(self):
         self.clear_screen()
@@ -1893,7 +3023,9 @@ class TecnoApp(QMainWindow):
     def _save_advanced_prefs(self):
         selected = {tid for tid, cb in self._advanced_checks.items() if cb.isChecked()}
         save_enabled_optins(selected)
-        self._pending_status["gamer"] = f"> Preferências salvas ({len(selected)} opt-in ativos)."
+        n = len(selected)
+        noun = "tweak ativo" if n == 1 else "tweaks ativos"
+        self._pending_status["gamer"] = f"> ✓ Preferências salvas ({n} {noun})"
         self.show_gamer()
 
     def add_danger_btn(self, text, func):
@@ -1913,24 +3045,64 @@ class TecnoApp(QMainWindow):
         self._run_gamer_task("deactivate")
 
     def _run_gamer_task(self, action):
-        if self._gamer_worker is not None:
-            return
-        self.status_lbl.setText("> Aplicando Modo Gamer... aguarde." if action == "activate" else "> Desativando Modo Gamer...")
-        self.status_lbl.setStyleSheet(f"color: {self.primary}; font-family: 'Consolas'; font-weight: bold;")
+        # Defesa: se um worker antigo ficou referenciado mas já não está
+        # rodando (ex.: cleanup falhou silenciosamente), descarta antes
+        # de bloquear nova execução.
+        worker = self._gamer_worker
+        if worker is not None:
+            try:
+                still_running = worker.isRunning()
+            except Exception:
+                still_running = False
+            if still_running:
+                return
+            try:
+                worker.deleteLater()
+            except Exception:
+                pass
+            self._gamer_worker = None
+
+        status_lbl = getattr(self, "status_lbl", None)
+        if self._is_widget_alive(status_lbl):
+            status_lbl.setText(
+                "> Aplicando Modo Gamer... aguarde."
+                if action == "activate"
+                else "> Desativando Modo Gamer..."
+            )
+            status_lbl.setStyleSheet(
+                f"color: {self.primary}; font-family: 'Consolas'; font-weight: bold;"
+            )
         QApplication.processEvents()
 
-        optins = load_enabled_optins() if action == "activate" else set()
-        self._gamer_worker = GamerWorker(self.gamer_engine, action, enabled_optins=optins)
-        self._gamer_worker.finished.connect(self._on_gamer_done)
-        self._gamer_worker.start()
+        try:
+            optins = load_enabled_optins() if action == "activate" else set()
+            self._gamer_worker = GamerWorker(self.gamer_engine, action, enabled_optins=optins)
+            self._gamer_worker.finished.connect(self._on_gamer_done)
+            self._gamer_worker.start()
+        except Exception as e:
+            self._gamer_worker = None
+            try:
+                m = QMessageBox(self)
+                m.setWindowTitle("Modo Gamer")
+                m.setIcon(QMessageBox.Critical)
+                m.setText("Falha ao iniciar Modo Gamer.")
+                m.setInformativeText(str(e))
+                m.exec()
+            except Exception:
+                pass
 
     def _on_gamer_done(self, report, action):
         self._gamer_worker = None
-        verb = "aplicado" if action == "activate" else "desativado"
-        short_msg = (
-            f"Modo Gamer {verb}. "
-            f"Aplicados: {len(report.applied)} · Pulados: {len(report.skipped)} · Falhas: {len(report.failed)}"
-        )
+        if action == "activate":
+            n = len(report.applied)
+            noun = "tweak aplicado" if n == 1 else "tweaks aplicados"
+            short_msg = f"Modo Gamer ativado · {n} {noun}"
+            if report.failed:
+                f = len(report.failed)
+                f_word = "falha" if f == 1 else "falhas"
+                short_msg += f" · {f} {f_word}"
+        else:
+            short_msg = "Modo Gamer desativado"
         _save_module_status("gamer", short_msg)
         self._pending_status["gamer"] = f"> {short_msg}"
         self.show_gamer()
@@ -1963,7 +3135,16 @@ class TecnoApp(QMainWindow):
         for x in range(0, self.content_container.width(), 40): p.drawLine(x, 0, x, self.content_container.height())
         for y in range(0, self.content_container.height(), 40): p.drawLine(0, y, self.content_container.width(), y)
     def add_neon(self, w, c): g = QGraphicsDropShadowEffect(); g.setBlurRadius(20); g.setColor(QColor(c)); g.setOffset(0); w.setGraphicsEffect(g)
-    def create_menu_btn(self, t, f): b = QPushButton(t); b.setObjectName("MenuBtn"); b.setFixedSize(190, 40); b.clicked.connect(f); return b
+    def create_menu_btn(self, t, f, glyph: str = ""):
+        b = QPushButton(t)
+        b.setObjectName("MenuBtn")
+        b.setFixedSize(190, 40)
+        b.setCursor(QCursor(Qt.PointingHandCursor))
+        if glyph:
+            b.setIcon(self._menu_icon(glyph, size=18))
+            b.setIconSize(QSize(18, 18))
+        b.clicked.connect(f)
+        return b
     def clear_screen(self):
         while self.content_lyt.count():
             i = self.content_lyt.takeAt(0)
@@ -1973,5 +3154,78 @@ class TecnoApp(QMainWindow):
                     c = i.layout().takeAt(0); c.widget().deleteLater() if c.widget() else None
     def finalizar_app(self): self.clear_screen(); l = QLabel("TECNOAPP ENCERRADO"); l.setFont(QFont("Segoe UI", 18, QFont.Bold)); self.add_neon(l, "#ff4b4b"); self.content_lyt.addWidget(l, alignment=Qt.AlignCenter); QTimer.singleShot(1000, self.close)
 
+# ═══════════════════════════════════════════════════════════════════════
+# Entrypoint — proteção contra crash silencioso na inicialização
+# ═══════════════════════════════════════════════════════════════════════
+
+def _fatal_log_path() -> str:
+    log_dir = os.path.join(
+        os.environ.get("LOCALAPPDATA", os.environ.get("TEMP", ".")),
+        "TecnoApp",
+    )
+    try:
+        os.makedirs(log_dir, exist_ok=True)
+    except Exception:
+        log_dir = "."
+    return os.path.join(log_dir, "tecnoapp_error.log")
+
+
+def _write_fatal_log(exc: BaseException) -> str:
+    """Escreve traceback completo e contexto ambiental. Retorna o path."""
+    import traceback
+    path = _fatal_log_path()
+    try:
+        import PySide6
+        pyside_ver = getattr(PySide6, "__version__", "desconhecida")
+    except Exception:
+        pyside_ver = "desconhecida"
+    try:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write("=" * 70 + "\n")
+            f.write(f"TecnoApp — erro fatal · {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
+            f.write(f"Python     : {sys.version.splitlines()[0]}\n")
+            f.write(f"PySide6    : {pyside_ver}\n")
+            f.write(f"Diretório  : {os.getcwd()}\n")
+            f.write(f"Argumentos : {sys.argv}\n")
+            f.write("-" * 70 + "\n")
+            f.write("".join(traceback.format_exception(type(exc), exc, exc.__traceback__)))
+            f.write("\n")
+    except Exception:
+        pass
+    return path
+
+
+def _show_fatal_dialog(log_path: str):
+    """Exibe QMessageBox sobre o erro. Silencioso se Qt falhar também."""
+    try:
+        app = QApplication.instance() or QApplication(sys.argv)
+        m = QMessageBox()
+        m.setWindowTitle("TecnoApp — erro ao iniciar")
+        m.setIcon(QMessageBox.Critical)
+        m.setText("O TECNOAPP encontrou um erro ao iniciar.")
+        m.setInformativeText(f"O log foi salvo em:\n{log_path}")
+        m.exec()
+    except Exception:
+        pass
+
+
 if __name__ == "__main__":
-    app = QApplication(sys.argv); window = TecnoApp(); window.show(); sys.exit(app.exec())
+    try:
+        app = QApplication(sys.argv)
+        window = TecnoApp()
+        window.show()
+        sys.exit(app.exec())
+    except SystemExit:
+        raise
+    except BaseException as _fatal_exc:
+        _path = _write_fatal_log(_fatal_exc)
+        try:
+            print(f"\n[TecnoApp] Erro fatal. Log salvo em: {_path}", file=sys.stderr)
+        except Exception:
+            pass
+        _show_fatal_dialog(_path)
+        try:
+            input("\nPressione Enter para sair...")
+        except (EOFError, KeyboardInterrupt):
+            pass
+        sys.exit(1)
