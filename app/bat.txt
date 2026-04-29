@@ -1,0 +1,504 @@
+@echo off
+REM --- CONFIGURACAO INICIAL ---
+title TECNOAPP OTIMIZACAO - v4.7
+
+REM --- VERIFICACAO E AUTO-ELEVACAO DE ADM ---
+net session >nul 2>&1
+if %errorLevel% == 0 (
+    goto :MenuPrincipal
+) else (
+    echo.
+    echo  Solicitando permissao de Administrador...
+    powershell -Command "Start-Process '%~0' -Verb RunAs"
+    exit
+)
+
+:MenuPrincipal
+REM --- TEMA DO MENU: FUNDO PRETO (0), LETRA AZUL REAL (9) ---
+cls
+color 09
+echo.
+echo  _______________________________________________________ 
+echo ^|                                                       ^|
+echo ^|              TECNOAPP OTIMIZACAO - MENU               ^|
+echo ^|              VERSAO DO APP: 4.7                       ^|
+echo ^|_______________________________________________________^|
+echo.
+echo  Ola, bem-vindo. Selecione o tipo de servico:
+echo.
+echo  [1] LIMPEZA RAPIDA (Dia a dia)
+echo      - Apaga Temp, Prefetch, Logs e otimiza rede.
+echo.
+echo  [2] LIMPEZA PROFUNDA (Avancada)
+echo      - Remove lixo do Windows Update e Logs Antigos.
+echo      - Abre Check-list manual.
+echo.
+echo  [3] OTIMIZACAO DE PERFORMANCE (Boost)
+echo      - Acelerar Disco, Energia, Internet e RAM.
+echo      - Gerenciar Hibernacao e Telemetria.
+echo.
+echo  [4] CENTRAL DE REPAROS (Solucao de Problemas)
+echo      - Reparar Rede, Windows Update, Loja e Impressora.
+echo      - CORRECAO TOTAL DE SISTEMA (SFC / DISM).
+echo.
+echo  [0] SAIR DO APLICATIVO
+echo.
+echo  _______________________________________________________
+echo.
+echo             Desenvolvido por TECNOSUP
+echo.
+set "opcao="
+set /p opcao="Digite o numero e pressione ENTER: "
+
+if "%opcao%"=="1" goto :LimpezaRapida
+if "%opcao%"=="2" goto :LimpezaChecklist
+if "%opcao%"=="3" goto :MenuOtimizacao
+if "%opcao%"=="4" goto :MenuReparo
+if "%opcao%"=="0" goto :Sair
+if "%opcao%"=="x" goto :Sair
+if "%opcao%"=="X" goto :Sair
+
+goto :MenuPrincipal
+
+REM =================================================================
+REM BLOCO 1: LIMPEZA RAPIDA
+REM =================================================================
+:LimpezaRapida
+cls
+color 0B
+echo.
+echo  [!] INICIANDO LIMPEZA RAPIDA...
+echo.
+
+echo  1. Limpando pastas temporarias e Prefetch...
+del /s /f /q "%temp%\*.*" >nul 2>&1
+del /s /f /q "C:\Windows\Temp\*.*" >nul 2>&1
+del /s /f /q "C:\Windows\Prefetch\*.*" >nul 2>&1
+echo     [OK] Arquivos temporarios removidos.
+
+echo  2. Limpando Logs de Eventos do Windows...
+for /F "tokens=*" %%1 in ('wevtutil.exe el') DO wevtutil.exe cl "%%1" >nul 2>&1
+echo     [OK] Logs de historico zerados.
+
+echo  3. Resetando DNS e Rede...
+ipconfig /flushdns >nul 2>&1
+echo     [OK] Rede otimizada.
+
+echo  4. Limpeza de Disco Silenciosa...
+cleanmgr /AUTOCLEAN /VERYLOWDISK /quiet >nul 2>&1
+echo     [OK] Disco limpo.
+
+echo.
+echo  [SUCESSO] Limpeza Rapida concluida.
+echo.
+echo             Desenvolvido por TECNOSUP
+echo.
+echo  Pressione qualquer tecla para voltar ao menu...
+pause >nul
+goto :MenuPrincipal
+
+REM =================================================================
+REM BLOCO 2: LIMPEZA PROFUNDA
+REM =================================================================
+:LimpezaChecklist
+cls
+color 0B
+echo.
+echo  [!] INICIANDO LIMPEZA PROFUNDA...
+echo.
+
+echo  1. Carregando lista de limpeza do Windows...
+echo     Vai abrir uma janela. MARQUE TODAS AS CAIXINHAS nela.
+echo     Depois clique em OK.
+echo.
+echo  Aguardando voce configurar...
+cleanmgr /sageset:65535
+
+echo.
+echo  2. Executando a limpeza configurada...
+echo     (Isso pode levar alguns minutos)...
+cleanmgr /sagerun:65535
+
+color 0E
+echo.
+echo  =============================================================
+echo  AVISO IMPORTANTE SOBRE O ARMAZENAMENTO
+echo  =============================================================
+echo  O Windows Update pode ocupar espaco temporario enquanto
+echo  organiza os arquivos que foram limpos.
+echo.
+echo  SE O ESPACO NAO DIMINUIU, REINICIE O COMPUTADOR.
+echo  =============================================================
+echo.
+
+echo Set objShell = WScript.CreateObject("WScript.Shell") > "%temp%\msg.vbs"
+echo MsgBox "Limpeza concluida! Reinicie o PC para liberar o espaco total.", 64, "TECNOSUP" >> "%temp%\msg.vbs"
+cscript //nologo "%temp%\msg.vbs"
+del "%temp%\msg.vbs"
+
+goto :PerguntaReinicio
+
+REM =================================================================
+REM BLOCO 3: MENU DE OTIMIZACAO
+REM =================================================================
+:MenuOtimizacao
+cls
+color 09
+echo.
+echo  -------------------------------------------------------
+echo               OTIMIZACAO DE PERFORMANCE
+echo  -------------------------------------------------------
+echo.
+echo  Escolha o que deseja melhorar no computador:
+echo.
+echo  [1] PLANO DE ENERGIA MAXIMA
+echo      - Ativa o modo "Desempenho Maximo" do Windows.
+echo.
+echo  [2] ACELERACAO DE DISCO (TRIM / DEFRAG)
+echo      - Organiza arquivos para abrir programas mais rapido.
+echo.
+echo  [3] OTIMIZAR CONEXAO (TCP/IP)
+echo      - Ajusta parametros do Windows para priorizar a internet.
+echo.
+echo  [4] DESATIVAR TELEMETRIA (RAM + Privacidade)
+echo      - Fecha servicos de rastreamento do Windows.
+echo      - Libera memoria RAM de processos inuteis.
+echo.
+echo  [5] GERENCIAR HIBERNACAO (Ganhar Espaco)
+echo      - Desativar para liberar 3GB a 10GB de espaco.
+echo.
+echo  [0] VOLTAR AO MENU PRINCIPAL
+echo.
+echo  -------------------------------------------------------
+echo.
+set "opt="
+set /p opt="Escolha uma opcao: "
+
+if "%opt%"=="1" goto :BoostEnergia
+if "%opt%"=="2" goto :BoostDisco
+if "%opt%"=="3" goto :BoostRede
+if "%opt%"=="4" goto :FixTelemetria
+if "%opt%"=="5" goto :MenuHibernacao
+if "%opt%"=="0" goto :MenuPrincipal
+goto :MenuOtimizacao
+
+:BoostEnergia
+cls
+echo.
+echo  [!] ATIVANDO PLANO DE DESEMPENHO MAXIMO...
+echo.
+echo  1. Desbloqueando plano oculto...
+powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 >nul 2>&1
+echo  2. Ativando plano...
+powercfg /setactive e9a42b02-d5df-448d-aa00-03f14749eb61 >nul 2>&1
+echo.
+echo  [SUCESSO] O Windows agora esta priorizando performance.
+echo.
+echo  Pressione qualquer tecla para voltar...
+pause >nul
+goto :MenuOtimizacao
+
+:BoostDisco
+cls
+echo.
+echo  [!] OTIMIZANDO UNIDADE DE ARMAZENAMENTO (C:)...
+echo.
+echo  Isso pode demorar alguns segundos.
+echo.
+defrag C: /O /U /V
+echo.
+echo  [SUCESSO] Otimizacao de disco finalizada.
+echo.
+echo  Pressione qualquer tecla para voltar...
+pause >nul
+goto :MenuOtimizacao
+
+:BoostRede
+cls
+echo.
+echo  [!] OTIMIZANDO PARAMETROS DE REDE...
+echo.
+netsh int tcp set global autotuninglevel=normal >nul 2>&1
+netsh int tcp set global chimney=enabled >nul 2>&1
+netsh int tcp set global dca=enabled >nul 2>&1
+netsh int tcp set global netdma=enabled >nul 2>&1
+echo  [OK] Parametros TCP ajustados para padrao otimizado.
+echo.
+echo  Pressione qualquer tecla para voltar...
+pause >nul
+goto :MenuOtimizacao
+
+:FixTelemetria
+cls
+echo.
+echo  [!] DESATIVANDO TELEMETRIA E RASTREAMENTO...
+echo.
+sc stop DiagTrack >nul 2>&1
+sc config DiagTrack start= disabled >nul 2>&1
+sc stop dmwappushservice >nul 2>&1
+sc config dmwappushservice start= disabled >nul 2>&1
+echo  [OK] Servicos de espionagem desativados.
+echo.
+echo  Pressione qualquer tecla para voltar...
+pause >nul
+goto :MenuOtimizacao
+
+:MenuHibernacao
+cls
+echo.
+echo  -------------------------------------------------------
+echo               GERENCIAR HIBERNACAO
+echo  -------------------------------------------------------
+echo.
+echo  [1] DESATIVAR HIBERNACAO (Libera de 3GB a 10GB)
+echo      - O PC nao podera mais hibernar, apenas suspender.
+echo.
+echo  [2] ATIVAR HIBERNACAO (Padrao)
+echo      - Restaura a funcao de hibernacao.
+echo.
+echo  [0] CANCELAR E VOLTAR
+echo.
+echo  -------------------------------------------------------
+set "hib="
+set /p hib="Escolha: "
+
+if "%hib%"=="1" (
+    powercfg -h off
+    echo.
+    echo  [SUCESSO] Hibernacao DESATIVADA. Espaco liberado.
+    pause
+    goto :MenuOtimizacao
+)
+if "%hib%"=="2" (
+    powercfg -h on
+    echo.
+    echo  [SUCESSO] Hibernacao ATIVADA.
+    pause
+    goto :MenuOtimizacao
+)
+goto :MenuOtimizacao
+
+REM =================================================================
+REM BLOCO 4: CENTRAL DE REPAROS
+REM =================================================================
+:MenuReparo
+cls
+color 09
+echo.
+echo  -------------------------------------------------------
+echo               CENTRAL DE REPAROS TECNOSUP
+echo  -------------------------------------------------------
+echo.
+echo  [1] REPARAR REDE E INTERNET (Reset Completo)
+echo      - Corrige ping alto, queda de Wi-Fi e erros de IP.
+echo.
+echo  [2] DESTRAVAR WINDOWS UPDATE (Corrigir Erros)
+echo      - Destrava atualizacoes pendentes ou com erro.
+echo.
+echo  [3] REPARAR LOJA E APPS (Microsoft Store)
+echo      - Corrige Calculadora, Fotos e Loja que nao abrem.
+echo.
+echo  [4] CORRIGIR IMPRESSORA (Spooler)
+echo      - Limpa a fila de impressao travada.
+echo.
+echo  [5] REINICIAR INTERFACE (Explorer)
+echo      - Destrava barra de tarefas e icones.
+echo.
+echo  [6] CORRECAO TOTAL DE SISTEMA (SFC / DISM)
+echo      - Repara arquivos corrompidos do Windows.
+echo      - ATENCAO: Demora de 20 a 40 minutos.
+echo.
+echo  [0] VOLTAR AO MENU PRINCIPAL
+echo.
+echo  -------------------------------------------------------
+echo.
+set "rep="
+set /p rep="Escolha uma opcao: "
+
+if "%rep%"=="1" goto :FixRede
+if "%rep%"=="2" goto :FixUpdate
+if "%rep%"=="3" goto :FixStore
+if "%rep%"=="4" goto :FixImpressora
+if "%rep%"=="5" goto :FixExplorer
+if "%rep%"=="6" goto :AvisoCorrecao
+if "%rep%"=="0" goto :MenuPrincipal
+goto :MenuReparo
+
+:FixRede
+cls
+echo.
+echo  [!] RESETANDO CONFIGURACOES DE REDE...
+echo.
+echo  1. Resetando Winsock...
+netsh winsock reset >nul 2>&1
+echo  2. Resetando Pilha TCP/IP...
+netsh int ip reset >nul 2>&1
+echo  3. Renovando IP...
+ipconfig /release >nul 2>&1
+ipconfig /renew >nul 2>&1
+ipconfig /flushdns >nul 2>&1
+echo.
+echo  [OK] Rede resetada. Erros de conexao corrigidos.
+echo.
+echo  Pressione qualquer tecla para voltar...
+pause >nul
+goto :MenuReparo
+
+:FixUpdate
+cls
+echo.
+echo  [!] REPARANDO WINDOWS UPDATE...
+echo.
+echo  Parando servicos (Aguarde)...
+net stop wuauserv >nul 2>&1
+net stop cryptSvc >nul 2>&1
+net stop bits >nul 2>&1
+echo  Reiniciando servicos...
+net start wuauserv >nul 2>&1
+net start cryptSvc >nul 2>&1
+net start bits >nul 2>&1
+echo.
+echo  [OK] Windows Update destravado. Tente atualizar agora.
+echo.
+echo  Pressione qualquer tecla para voltar...
+pause >nul
+goto :MenuReparo
+
+:FixStore
+cls
+echo.
+echo  [!] REPARANDO MICROSOFT STORE E APPS...
+echo.
+echo  Isso vai abrir uma janela da Loja ao finalizar.
+echo  Aguarde...
+wsreset.exe
+echo.
+echo  [OK] Cache da loja limpo.
+echo.
+echo  Pressione qualquer tecla para voltar...
+pause >nul
+goto :MenuReparo
+
+:FixImpressora
+cls
+echo.
+echo  [!] REINICIANDO SERVICO DE IMPRESSAO...
+echo.
+echo  1. Parando servico...
+net stop spooler >nul 2>&1
+echo  2. Limpando fila travada...
+del /F /Q /S C:\Windows\System32\spool\PRINTERS\*.* >nul 2>&1
+echo  3. Reiniciando servico...
+net start spooler >nul 2>&1
+echo.
+echo  [OK] Fila de impressao limpa e servico reiniciado.
+echo.
+echo  Pressione qualquer tecla para voltar...
+pause >nul
+goto :MenuReparo
+
+:FixExplorer
+cls
+echo.
+echo  [!] REINICIANDO INTERFACE DO WINDOWS...
+echo.
+echo  A tela vai piscar. Isso e normal.
+taskkill /f /im explorer.exe >nul 2>&1
+start explorer.exe >nul 2>&1
+echo.
+echo  [OK] Interface reiniciada com sucesso.
+echo.
+echo  Pressione qualquer tecla para voltar...
+pause >nul
+goto :MenuReparo
+
+:AvisoCorrecao
+cls
+color 4F
+echo.
+echo  =======================================================
+echo                 ATENCAO: LEIA COM CUIDADO
+echo  =======================================================
+echo.
+echo  Voce selecionou a CORRECAO DE SISTEMA (Modo Reparo).
+echo.
+echo  1. Este processo e DEMORADO (pode levar 40 minutos).
+echo  2. O computador pode ficar LENTO durante a execucao.
+echo  3. A porcentagem pode PARECER TRAVADA (ex: em 62.3%%).
+echo     ISSO E NORMAL. NAO DESLIGUE O COMPUTADOR.
+echo.
+echo  Se voce iniciar, nao sera possivel cancelar.
+echo.
+echo  =======================================================
+echo.
+set "confirma="
+set /p confirma="Deseja realmente continuar? (Digite S para SIM): "
+
+if /i "%confirma%"=="S" goto :CorrecaoSistema
+goto :MenuReparo
+
+:CorrecaoSistema
+cls
+color 03
+echo.
+echo  [!] MODO CORRECAO DE SISTEMA INICIADO
+echo  Aguarde o termino de todas as etapas...
+echo.
+echo  1. Verificando arquivos de sistema (SFC)...
+sfc /scannow
+
+echo.
+echo  2. Reparando imagem do Windows (DISM)...
+echo     (Isso pode demorar bastante. Aguarde.)...
+DISM.exe /Online /Cleanup-image /Restorehealth
+
+echo.
+echo  3. Agendar verificacao de disco (CHKDSK)?
+set /p chk="Digite S para Sim ou N para Nao: "
+if /i "%chk%"=="S" (
+    echo.
+    echo  O sistema pedira confirmacao abaixo (S/N):
+    chkdsk C: /f /r
+)
+
+echo.
+echo  [SUCESSO] Manutencao finalizada.
+echo.
+
+:PerguntaReinicio
+echo             Desenvolvido por TECNOSUP
+echo.
+echo  _______________________________________________________
+echo.
+echo  DESEJA REINICIAR O COMPUTADOR AGORA?
+echo  [9] REINICIAR AGORA (Recomendado)
+echo  [ENTER] VOLTAR AO MENU (Reiniciar depois)
+echo.
+set "pos="
+set /p pos="Digite 9 ou pressione ENTER: "
+if "%pos%"=="9" goto :ConfirmarReinicio
+goto :MenuPrincipal
+
+:ConfirmarReinicio
+echo.
+echo  ---------------------------------------------------
+echo   CONFIRMACAO FINAL
+echo   O computador sera reiniciado imediatamente.
+echo  ---------------------------------------------------
+echo.
+set /p conf="Digite S para Confirmar: "
+if /i "%conf%"=="S" (
+    shutdown /r /t 0
+    exit
+)
+goto :MenuPrincipal
+
+:Sair
+cls
+color 09
+echo  Obrigado por usar o sistema TECNOSUP.
+echo  Ate logo!
+echo.
+echo             Desenvolvido por TECNOSUP
+timeout /t 2 >nul
+exit

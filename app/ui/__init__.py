@@ -8,7 +8,12 @@ Uso típico:
     from ui import Card, HeroCard, MetricLabel, Chip, Palette
 """
 
-from .widgets import Card, HeroCard, MetricLabel, Chip, ResponsiveCardRow, Palette, Spacing
+from .widgets import (
+    Card, HeroCard, MetricLabel, Chip, ResponsiveCardRow,
+    Palette, Spacing,
+    SidebarButton, SidebarRestoreButton, SidebarExitButton, GamerSidebarButton,
+)
+from .icons import lucide_icon, lucide_pixmap
 
 __all__ = [
     "Card",
@@ -18,4 +23,10 @@ __all__ = [
     "ResponsiveCardRow",
     "Palette",
     "Spacing",
+    "SidebarButton",
+    "SidebarRestoreButton",
+    "SidebarExitButton",
+    "GamerSidebarButton",
+    "lucide_icon",
+    "lucide_pixmap",
 ]
