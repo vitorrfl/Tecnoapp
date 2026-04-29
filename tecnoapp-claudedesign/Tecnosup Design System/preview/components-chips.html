@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #030407; font-family: 'Segoe UI', system-ui, sans-serif; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+  .slabel { color: #0eb3ff; font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px; }
+  .chip { font-size: 10px; font-weight: 700; border-radius: 10px; padding: 2px 10px; border: 1px solid; height: 22px; display: inline-flex; align-items: center; }
+
+  /* Disk card */
+  .disk-card { background: #0a0d14; border: 1px solid #1a2230; border-radius: 10px; padding: 13px 14px; display: flex; flex-direction: column; gap: 11px; }
+  .disk-row { display: flex; flex-direction: column; gap: 4px; }
+  .disk-header { display: flex; justify-content: space-between; align-items: baseline; }
+  .drive { font-family: 'Consolas', monospace; font-size: 12px; font-weight: 700; color: #fff; }
+  .drive-fs { font-family: 'Consolas', monospace; font-size: 9px; color: #444; margin-left: 4px; }
+  .pct-val { font-family: 'Consolas', monospace; font-size: 12px; font-weight: 700; }
+  .track { height: 8px; background: #04060a; border: 1px solid #1a2230; border-radius: 4px; overflow: hidden; }
+  .fill { height: 100%; border-radius: 3px; }
+  .disk-stats { display: flex; gap: 0; }
+  .stat-block { flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; background: #060810; border: 1px solid #111827; border-radius: 6px; margin-right: 4px; }
+  .stat-block:last-child { margin-right: 0; }
+  .stat-val { font-family: 'Consolas', monospace; font-size: 11px; font-weight: 700; }
+  .stat-key { font-family: 'Consolas', monospace; font-size: 8px; color: #444; letter-spacing: .5px; text-transform: uppercase; margin-top: 1px; }
+  .divider { height: 1px; background: #1a2230; }
+</style>
+</head>
+<body>
+
+<!-- CHIPS -->
+<div>
+  <div class="slabel">CHIPS — estados</div>
+  <div style="background:#0a0d14;border:1px solid #1a2230;border-radius:10px;padding:10px 12px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+    <span class="chip" style="background:rgba(14,179,255,0.12);color:#0eb3ff;border-color:#0eb3ff">Opt-in</span>
+    <span class="chip" style="background:rgba(76,175,80,0.13);color:#4caf50;border-color:#4caf50">APLICADO</span>
+    <span class="chip" style="background:rgba(255,189,46,0.12);color:#ffbd2e;border-color:#ffbd2e">ATENÇÃO</span>
+    <span class="chip" style="background:rgba(255,75,75,0.12);color:#ff4b4b;border-color:#ff4b4b">RISCO</span>
+    <span class="chip" style="background:transparent;color:#555;border-color:#333">INATIVO</span>
+    <span class="chip" style="background:rgba(112,0,255,0.15);color:#a050ff;border-color:#7000ff">GAMER</span>
+  </div>
+</div>
+
+<!-- DISK BARS -->
+<div>
+  <div class="slabel">BARRAS DE DISCO</div>
+  <div class="disk-card">
+
+    <!-- C: normal -->
+    <div class="disk-row">
+      <div class="disk-header">
+        <span>
+          <span class="drive">C:\</span>
+          <span class="drive-fs">NTFS · SSD NVMe</span>
+          <span style="font-family:'Consolas',monospace;font-size:8px;font-weight:700;background:rgba(14,179,255,0.12);color:#0eb3ff;border:1px solid rgba(14,179,255,0.35);border-radius:4px;padding:1px 5px;margin-left:6px;letter-spacing:.5px">SISTEMA</span>
+        </span>
+        <span class="pct-val" style="color:#0eb3ff">72%</span>
+      </div>
+      <div class="track"><div class="fill" style="width:72%;background:#0eb3ff;box-shadow:0 0 6px rgba(14,179,255,0.5)"></div></div>
+      <div class="disk-stats">
+        <div class="stat-block">
+          <div class="stat-val" style="color:#0eb3ff">670 GB</div>
+          <div class="stat-key">usado</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-val" style="color:#4caf50">260 GB</div>
+          <div class="stat-key">livre</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-val" style="color:#888">931 GB</div>
+          <div class="stat-key">total</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- D: warn -->
+    <div class="disk-row">
+      <div class="disk-header">
+        <span><span class="drive">D:\</span><span class="drive-fs">NTFS · HDD</span></span>
+        <span class="pct-val" style="color:#ffbd2e">82%</span>
+      </div>
+      <div class="track"><div class="fill" style="width:82%;background:#ffbd2e;box-shadow:0 0 6px rgba(255,189,46,0.4)"></div></div>
+      <div class="disk-stats">
+        <div class="stat-block">
+          <div class="stat-val" style="color:#ffbd2e">410 GB</div>
+          <div class="stat-key">usado</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-val" style="color:#4caf50">90 GB</div>
+          <div class="stat-key">livre</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-val" style="color:#888">500 GB</div>
+          <div class="stat-key">total</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- E: critical -->
+    <div class="disk-row">
+      <div class="disk-header">
+        <span><span class="drive">E:\</span><span class="drive-fs">NTFS · USB</span></span>
+        <span class="pct-val" style="color:#ff4b4b">94%</span>
+      </div>
+      <div class="track"><div class="fill" style="width:94%;background:#ff4b4b;box-shadow:0 0 6px rgba(255,75,75,0.45)"></div></div>
+      <div class="disk-stats">
+        <div class="stat-block">
+          <div class="stat-val" style="color:#ff4b4b">118 GB</div>
+          <div class="stat-key">usado</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-val" style="color:#888">7 GB</div>
+          <div class="stat-key">livre</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-val" style="color:#888">125 GB</div>
+          <div class="stat-key">total</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- SCROLLBAR -->
+<div>
+  <div class="slabel">SCROLLBAR</div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <div style="width:6px;height:70px;background:#111;border-radius:3px;position:relative">
+      <div style="width:6px;height:26px;background:#0eb3ff;border-radius:3px;position:absolute;top:8px;box-shadow:0 0 6px rgba(14,179,255,0.5)"></div>
+    </div>
+    <span style="font-family:'Consolas',monospace;font-size:9px;color:#444">6px · handle #0eb3ff · track #111</span>
+  </div>
+</div>
+
+</body>
+</html>

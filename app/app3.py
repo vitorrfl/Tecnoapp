@@ -14,7 +14,11 @@ import shiboken6
 
 from gamer import build_engine, load_enabled_optins, save_enabled_optins
 from gamer.tweaks import Category
-from ui import Card, HeroCard, MetricLabel, Chip, ResponsiveCardRow, Palette
+from ui import (
+    Card, HeroCard, MetricLabel, Chip, ResponsiveCardRow, Palette,
+    SidebarButton, SidebarRestoreButton, SidebarExitButton, GamerSidebarButton,
+)
+from ui.icons import lucide_pixmap
 from system_info import (
     os_info, cpu_static, cpu_pct, mem_live, disk_c_info, disks_info,
     processes_count, uptime_seconds, format_uptime, top_processes,
@@ -851,49 +855,96 @@ class TecnoApp(QMainWindow):
 
         self.setStyleSheet(f"""
             QMainWindow {{ background-color: {self.bg_dark}; }}
-            #Sidebar {{ background-color: rgba(3, 4, 7, 245); border-right: 1px solid rgba(14, 179, 255, 0.1); }}
+            #Sidebar {{
+                background-color: rgba(3, 4, 7, 247);
+                border-right: 1px solid rgba(14, 179, 255, 0.10);
+            }}
             QLabel {{ color: #ffffff; background: transparent; }}
-            
+
             QPushButton#MenuBtn {{
-                background: transparent; border: 1px solid rgba(14, 179, 255, 0.25);
-                color: #ffffff; font-family: 'Segoe UI'; font-size: 11px;
-                font-weight: bold; border-radius: 8px;
+                background: transparent;
+                border: 1px solid rgba(26, 34, 48, 0.6);
+                color: #ccd2e0;
+                font-family: 'Segoe UI'; font-size: 11px;
+                font-weight: bold; letter-spacing: 1px;
+                border-radius: 8px;
                 padding: 9px 12px; text-align: left;
             }}
             QPushButton#MenuBtn:hover {{
-                background: rgba(14, 179, 255, 0.10);
-                border: 1px solid {self.primary};
+                background: rgba(14, 179, 255, 0.08);
+                border: 1px solid rgba(14, 179, 255, 0.55);
                 color: {self.primary};
             }}
             QPushButton#MenuBtn:pressed {{
-                background: rgba(14, 179, 255, 0.18);
+                background: rgba(14, 179, 255, 0.16);
             }}
-            
+            QPushButton#MenuBtn[active="true"] {{
+                background: rgba(14, 179, 255, 0.12);
+                border: 1px solid {self.primary};
+                color: {self.primary};
+            }}
+
             QPushButton#ActionBtn {{
-                background-color: {self.primary}; color: black; font-weight: bold;
-                border-radius: 8px; padding: 12px; border: none; font-size: 14px;
+                background-color: {self.primary}; color: #030407;
+                font-weight: bold; font-family: 'Segoe UI'; font-size: 14px;
+                border-radius: 8px; padding: 12px; border: none;
             }}
-            QPushButton#ActionBtn:hover {{ background-color: white; }}
+            QPushButton#ActionBtn:hover {{ background-color: #ffffff; }}
+            QPushButton#ActionBtn:pressed {{ background-color: #2dc3ff; }}
 
             QPushButton#InfoBtn {{
-                background: rgba(14, 179, 255, 0.1); border: 1px solid {self.primary}; 
-                color: {self.primary}; font-size: 14px; border-radius: 15px; font-weight: bold;
+                background: rgba(14, 179, 255, 0.10);
+                border: 1px solid {self.primary};
+                color: {self.primary};
+                font-size: 14px; border-radius: 15px; font-weight: bold;
             }}
-            QPushButton#InfoBtn:hover {{ background: {self.primary}; color: black; }}
+            QPushButton#InfoBtn:hover {{ background: {self.primary}; color: #030407; }}
 
             QPushButton#GamerNav {{
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {self.primary}, stop:1 {self.secondary});
-                color: white; font-weight: bold; font-family: 'Segoe UI'; font-size: 11px;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {self.primary}, stop:1 {self.secondary});
+                color: white; font-weight: bold;
+                font-family: 'Segoe UI'; font-size: 11px; letter-spacing: 1px;
                 border-radius: 8px; padding: 9px 12px; border: 1px solid transparent;
                 text-align: left;
             }}
             QPushButton#GamerNav:hover {{
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2dc3ff, stop:1 #8a2bff);
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #2dc3ff, stop:1 #8a2bff);
             }}
+            QPushButton#GamerNav[active="true"] {{
+                border: 1px solid #ffffff;
+            }}
+
             QPushButton#ExitBtn {{
-                background: transparent; border: 1px solid #ff4b4b; color: #ff4b4b; border-radius: 8px; font-weight: bold;
+                background: transparent;
+                border: 1px solid rgba(255, 75, 75, 0.55);
+                color: #ff4b4b;
+                border-radius: 8px;
+                font-family: 'Segoe UI'; font-weight: bold; letter-spacing: 1px;
             }}
-            QPushButton#ExitBtn:hover {{ background: #ff4b4b; color: white; }}
+            QPushButton#ExitBtn:hover {{
+                background: #ff4b4b; color: white;
+                border: 1px solid #ff4b4b;
+            }}
+
+            QScrollArea {{ background: transparent; border: none; }}
+            QScrollBar:vertical {{
+                background: transparent; width: 8px; margin: 2px;
+            }}
+            QScrollBar::handle:vertical {{
+                background: rgba(14, 179, 255, 0.25);
+                border-radius: 4px; min-height: 30px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background: rgba(14, 179, 255, 0.55);
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                background: none; height: 0px;
+            }}
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+                background: none;
+            }}
         """)
 
         central_widget = QWidget()
@@ -905,29 +956,49 @@ class TecnoApp(QMainWindow):
         side_lyt = QVBoxLayout(sidebar); side_lyt.setContentsMargins(15, 24, 15, 18); side_lyt.setSpacing(10)
 
         side_lyt.addWidget(self._build_logo_widget(), alignment=Qt.AlignCenter)
-        side_lyt.addSpacing(18)
+        side_lyt.addSpacing(8)
 
-        side_lyt.addWidget(self.create_menu_btn("LIMPEZA",        self.show_limpeza,    ""))
-        side_lyt.addWidget(self.create_menu_btn("OTIMIZAÇÃO",     self.show_otimizacao, ""))
-        side_lyt.addWidget(self.create_menu_btn("REPAROS",        self.show_reparos,    ""))
-        side_lyt.addWidget(self.create_menu_btn("ESPECIFICAÇÕES", self.show_specs,      ""))
+        self._menu_buttons = {}
+        btn_home = SidebarButton("home",       "HOME")
+        btn_limp = SidebarButton("limpeza",    "LIMPEZA")
+        btn_otim = SidebarButton("otimizacao", "OTIMIZAÇÃO")
+        btn_rep  = SidebarButton("reparos",    "REPAROS")
+        btn_spec = SidebarButton("specs",      "ESPECIFICAÇÕES")
+        btn_home.clicked.connect(self.show_home)
+        btn_limp.clicked.connect(self.show_limpeza)
+        btn_otim.clicked.connect(self.show_otimizacao)
+        btn_rep.clicked.connect(self.show_reparos)
+        btn_spec.clicked.connect(self.show_specs)
+        self._menu_buttons["home"]       = btn_home
+        self._menu_buttons["limpeza"]    = btn_limp
+        self._menu_buttons["otimizacao"] = btn_otim
+        self._menu_buttons["reparos"]    = btn_rep
+        self._menu_buttons["specs"]      = btn_spec
+        side_lyt.addWidget(btn_home)
+        side_lyt.addWidget(btn_limp)
+        side_lyt.addWidget(btn_otim)
+        side_lyt.addWidget(btn_rep)
+        side_lyt.addWidget(btn_spec)
 
-        self.btn_gamer_nav = QPushButton("MODO GAMER")
-        self.btn_gamer_nav.setObjectName("GamerNav")
-        self.btn_gamer_nav.setCursor(QCursor(Qt.PointingHandCursor))
-        self.btn_gamer_nav.setIcon(self._menu_icon("", size=18))
-        self.btn_gamer_nav.setIconSize(QSize(18, 18))
+        self.btn_gamer_nav = GamerSidebarButton()
         self.btn_gamer_nav.clicked.connect(self.show_gamer)
-        self.add_neon(self.btn_gamer_nav, self.secondary)
         side_lyt.addWidget(self.btn_gamer_nav)
 
         side_lyt.addStretch()
-        btn_sair = QPushButton("SAIR"); btn_sair.setObjectName("ExitBtn"); btn_sair.setFixedSize(180, 35)
-        btn_sair.clicked.connect(self.finalizar_app); side_lyt.addWidget(btn_sair, alignment=Qt.AlignCenter)
 
-        side_lyt.addSpacing(8)
+        self.btn_restore = SidebarRestoreButton()
+        self.btn_restore.clicked.connect(self.criar_ponto_restauracao)
+        side_lyt.addWidget(self.btn_restore)
+
+        side_lyt.addSpacing(2)
+
+        btn_sair = SidebarExitButton()
+        btn_sair.clicked.connect(self.finalizar_app)
+        side_lyt.addWidget(btn_sair)
+
+        side_lyt.addSpacing(4)
         ver = QLabel("v 1.0 · Tecnosup")
-        ver.setStyleSheet("color: #3a4250; font-family: 'Consolas'; font-size: 9px; background: transparent;")
+        ver.setStyleSheet("color: #2a3040; font-family: 'Consolas'; font-size: 9px; background: transparent;")
         ver.setAlignment(Qt.AlignCenter)
         side_lyt.addWidget(ver)
 
@@ -939,7 +1010,21 @@ class TecnoApp(QMainWindow):
         self.content_lyt.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(self.content_container)
 
-        self.show_home()
+        if os.environ.get("TECNOAPP_WEB") == "1":
+            self.show_web()
+        else:
+            self.show_home()
+
+    def show_web(self):
+        """Substitui toda a área de conteúdo pelo WebView (PoC pixel-perfect)."""
+        from web_screen import WebScreen
+        self.clear_screen()
+        if hasattr(self, "_web_view") and self._web_view is not None:
+            self._web_view.deleteLater()
+        self._web_view = WebScreen(main_window=self, parent=self.content_container)
+        self.content_lyt.setContentsMargins(0, 0, 0, 0)
+        self.content_lyt.setAlignment(Qt.AlignTop)
+        self.content_lyt.addWidget(self._web_view, 1)
 
     def get_free_space(self):
         free_bytes = ctypes.c_ulonglong(0)
@@ -1094,6 +1179,7 @@ class TecnoApp(QMainWindow):
 
     def show_limpeza(self):
         self.clear_screen()
+        self._set_active_menu("limpeza")
         self._stop_metrics_timer()
 
         panel = QWidget()
@@ -1508,6 +1594,7 @@ class TecnoApp(QMainWindow):
     # ═══════════════════════════════════════════════════════════════════
     def show_home(self):
         self.clear_screen()
+        self._set_active_menu("home")
         self._stop_metrics_timer()
 
         panel = QWidget()
@@ -1572,6 +1659,13 @@ class TecnoApp(QMainWindow):
         self._home_disk_bar.setValue(int(d["pct"]))
         live_row.addWidget(disk_card)
 
+        proc_n = processes_count()
+        proc_card, self._home_proc_metric, _, self._home_proc_sub = \
+            self._build_live_card(
+                "PROCESSOS", str(proc_n), "em execução", show_bar=False,
+            )
+        live_row.addWidget(proc_card)
+
         panel_lyt.addLayout(live_row)
 
         # Linha de cards de AÇÃO — responsiva: 1×4 quando largo, 2×2 quando estreito
@@ -1583,6 +1677,70 @@ class TecnoApp(QMainWindow):
         ]
         actions_row = ResponsiveCardRow(action_cards, breakpoint_px=900, spacing=12)
         panel_lyt.addWidget(actions_row)
+
+        # Card SISTEMA — grid 2×2 com info estática
+        sistema_card = Card()
+        sistema_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        sistema_card.layout().setSpacing(6)
+
+        sistema_title = QLabel("SISTEMA")
+        sistema_title.setStyleSheet(
+            f"color: {Palette.ACCENT_CYAN}; font-family: 'Segoe UI'; "
+            f"font-size: 11px; font-weight: bold; letter-spacing: 1px;"
+            f" background: transparent;"
+        )
+        sistema_card.add(sistema_title)
+
+        sistema_grid = QGridLayout()
+        sistema_grid.setHorizontalSpacing(24)
+        sistema_grid.setVerticalSpacing(4)
+        sistema_grid.setContentsMargins(0, 6, 0, 0)
+        cpu_static_info = cpu_static()
+        mem_total = mem_live().get("total", 0)
+        rows = [
+            ("Processador", cpu_static_info.get("name") or "—"),
+            ("Memória RAM", self.format_size(mem_total) if mem_total else "—"),
+            ("Sistema", info.get("system", "—")),
+            ("Uptime", format_uptime(uptime_seconds())),
+        ]
+        for i, (k, v) in enumerate(rows):
+            r, c = divmod(i, 2)
+            cell = QWidget()
+            cell.setStyleSheet(
+                f"QWidget {{ border-bottom: 1px solid {Palette.BORDER_SUBTLE};"
+                f" background: transparent; }}"
+            )
+            cell_lyt = QHBoxLayout(cell)
+            cell_lyt.setContentsMargins(0, 4, 0, 4)
+            cell_lyt.setSpacing(8)
+            k_lbl = QLabel(k)
+            k_lbl.setStyleSheet(
+                f"color: {Palette.FG_MUTED}; font-family: 'Consolas';"
+                f" font-size: 10px; background: transparent; border: none;"
+            )
+            k_lbl.setMinimumWidth(100)
+            v_lbl = QLabel(v)
+            v_lbl.setStyleSheet(
+                f"color: {Palette.FG_PRIMARY}; font-family: 'Consolas';"
+                f" font-size: 10px; background: transparent; border: none;"
+            )
+            v_lbl.setWordWrap(True)
+            cell_lyt.addWidget(k_lbl)
+            cell_lyt.addWidget(v_lbl, 1)
+            sistema_grid.addWidget(cell, r, c)
+        sistema_grid.setColumnStretch(0, 1)
+        sistema_grid.setColumnStretch(1, 1)
+        sistema_card.layout().addLayout(sistema_grid)
+        panel_lyt.addWidget(sistema_card)
+
+        # Status bar inferior (cyan mono)
+        status_lbl = QLabel("> Sistema verificado — nenhuma ação pendente.")
+        status_lbl.setStyleSheet(
+            f"color: {Palette.ACCENT_CYAN}; font-family: 'Consolas';"
+            f" font-size: 10px; background: transparent; padding-top: 4px;"
+        )
+        panel_lyt.addWidget(status_lbl)
+
         panel_lyt.addStretch(1)
 
         self.content_lyt.addWidget(panel, 1)
@@ -1593,15 +1751,17 @@ class TecnoApp(QMainWindow):
         self._metrics_timer.start(1000)
         self._update_home_live_metrics()
 
-    def _build_live_card(self, title: str, initial_pct: str, initial_sub: str):
+    def _build_live_card(self, title: str, initial_pct: str, initial_sub: str,
+                         show_bar: bool = True, accent: str | None = None):
         """Card com título, % grande, barra de progresso e sublabel.
 
-        Retorna (card, metric_label, progress_bar, sub_label) — refs
-        para atualização via timer.
+        Retorna (card, metric_label, progress_bar|None, sub_label) — refs
+        para atualização via timer. Quando show_bar=False, a barra é None
+        (usado p.ex. no card PROCESSOS, que mostra só uma contagem).
         """
-        card = Card()
+        card = HeroCard(accent_color=accent or Palette.ACCENT_CYAN)
         card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        card.layout().setSpacing(6)
+        card.layout().setSpacing(8)
 
         title_lbl = QLabel(title)
         title_lbl.setStyleSheet(
@@ -1613,24 +1773,27 @@ class TecnoApp(QMainWindow):
 
         metric = QLabel(initial_pct)
         metric.setFont(QFont("Segoe UI", 26, QFont.Bold))
+        metric.setAlignment(Qt.AlignCenter)
         metric.setStyleSheet(f"color: {Palette.FG_PRIMARY}; background: transparent;")
         card.add(metric)
 
-        bar = QProgressBar()
-        bar.setFixedHeight(8)
-        bar.setTextVisible(False)
-        bar.setRange(0, 100)
-        bar.setValue(0)
-        bar.setStyleSheet(
-            f"QProgressBar {{"
-            f"  background: #04060a; border: 1px solid {Palette.BORDER_SUBTLE};"
-            f"  border-radius: 4px;"
-            f"}}"
-            f"QProgressBar::chunk {{"
-            f"  background: {Palette.ACCENT_CYAN}; border-radius: 3px;"
-            f"}}"
-        )
-        card.add(bar)
+        bar = None
+        if show_bar:
+            bar = QProgressBar()
+            bar.setFixedHeight(8)
+            bar.setTextVisible(False)
+            bar.setRange(0, 100)
+            bar.setValue(0)
+            bar.setStyleSheet(
+                f"QProgressBar {{"
+                f"  background: #04060a; border: 1px solid {Palette.BORDER_SUBTLE};"
+                f"  border-radius: 4px;"
+                f"}}"
+                f"QProgressBar::chunk {{"
+                f"  background: {Palette.ACCENT_CYAN}; border-radius: 3px;"
+                f"}}"
+            )
+            card.add(bar)
 
         sub_lbl = QLabel(initial_sub)
         sub_lbl.setStyleSheet(
@@ -1638,6 +1801,7 @@ class TecnoApp(QMainWindow):
             f"font-size: 10px; background: transparent;"
         )
         sub_lbl.setWordWrap(True)
+        sub_lbl.setAlignment(Qt.AlignCenter)
         card.add(sub_lbl)
 
         return card, metric, bar, sub_lbl
@@ -1670,6 +1834,9 @@ class TecnoApp(QMainWindow):
             self._home_disk_sub.setText(
                 f"{self.format_size(d['used'])} / {self.format_size(d['total'])}"
             )
+
+        if self._is_widget_alive(getattr(self, "_home_proc_metric", None)):
+            self._home_proc_metric.setText(str(processes_count()))
 
     def _get_disk_info(self) -> tuple[int, int]:
         """Retorna (free_bytes, total_bytes) do disco C:. (0, 0) em falha."""
@@ -1707,14 +1874,19 @@ class TecnoApp(QMainWindow):
     def _home_cta(self, text: str, color: str, handler) -> QPushButton:
         btn = QPushButton(text)
         btn.setCursor(QCursor(Qt.PointingHandCursor))
-        btn.setFixedHeight(36)
+        btn.setFixedHeight(38)
+        is_purple = color == Palette.ACCENT_PURPLE
+        hover_color = "#8a2bff" if is_purple else "#2dc3ff"
+        text_color = "#ffffff" if is_purple else "#030407"
         btn.setStyleSheet(
             f"QPushButton {{"
-            f"  background: {color}; color: #030407; border: none;"
-            f"  border-radius: 6px; padding: 0 16px;"
-            f"  font-family: 'Segoe UI'; font-size: 12px; font-weight: bold;"
+            f"  background: {color}; color: {text_color}; border: none;"
+            f"  border-radius: 8px; padding: 0 16px;"
+            f"  font-family: 'Segoe UI'; font-size: 12px;"
+            f"  font-weight: bold; letter-spacing: 1px;"
             f"}}"
-            f"QPushButton:hover {{ background: white; }}"
+            f"QPushButton:hover {{ background: {hover_color}; }}"
+            f"QPushButton:pressed {{ background: {color}; }}"
         )
         btn.clicked.connect(handler)
         return btn
@@ -1802,6 +1974,7 @@ class TecnoApp(QMainWindow):
     # ═══════════════════════════════════════════════════════════════════
     def show_specs(self):
         self.clear_screen()
+        self._set_active_menu("specs")
         self._stop_metrics_timer()
 
         panel = QWidget()
@@ -2088,6 +2261,7 @@ class TecnoApp(QMainWindow):
     # ═══════════════════════════════════════════════════════════════════
     def show_otimizacao(self):
         self.clear_screen()
+        self._set_active_menu("otimizacao")
         self._stop_metrics_timer()
 
         panel = QWidget()
@@ -2510,6 +2684,7 @@ class TecnoApp(QMainWindow):
     # ═══════════════════════════════════════════════════════════════════
     def show_reparos(self):
         self.clear_screen()
+        self._set_active_menu("reparos")
         self._stop_metrics_timer()
 
         panel = QWidget()
@@ -2766,6 +2941,7 @@ class TecnoApp(QMainWindow):
             )
     def show_gamer(self):
         self.clear_screen()
+        self._set_active_menu("gamer")
         self._stop_metrics_timer()
 
         active = self.gamer_engine.is_active()
@@ -2781,10 +2957,16 @@ class TecnoApp(QMainWindow):
 
         title = QLabel("MODO GAMER")
         title.setFont(QFont("Segoe UI", 22, QFont.Bold))
-        title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet(f"color: {Palette.ACCENT_PURPLE}; background: transparent;")
-        self.add_neon(title, Palette.ACCENT_PURPLE)
+        title.setStyleSheet(f"color: {Palette.FG_PRIMARY}; background: transparent;")
         panel_lyt.addWidget(title)
+
+        gamer_sub = QLabel("17 tweaks reversíveis de CPU, GPU, sistema e rede")
+        gamer_sub.setStyleSheet(
+            f"color: {Palette.FG_MUTED}; font-family: 'Segoe UI'; "
+            f"font-size: 12px; background: transparent;"
+        )
+        panel_lyt.addWidget(gamer_sub)
+        panel_lyt.addSpacing(4)
 
         hero = HeroCard(accent_color=Palette.ACCENT_PURPLE)
         hero.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
@@ -2824,13 +3006,19 @@ class TecnoApp(QMainWindow):
             btn = QPushButton("ATIVAR MODO GAMER")
             btn.setStyleSheet(
                 f"QPushButton {{"
-                f"  background-color: {self.primary}; color: black; font-weight: bold;"
+                f"  background: qlineargradient(x1:0, y1:0, x2:1, y2:0,"
+                f"    stop:0 {Palette.ACCENT_CYAN}, stop:1 {Palette.ACCENT_PURPLE});"
+                f"  color: white; font-weight: bold;"
                 f"  border-radius: 8px; padding: 12px; border: none; font-size: 14px;"
+                f"  letter-spacing: 1px;"
                 f"}}"
-                f"QPushButton:hover {{ background-color: white; }}"
+                f"QPushButton:hover {{"
+                f"  background: qlineargradient(x1:0, y1:0, x2:1, y2:0,"
+                f"    stop:0 #2dc3ff, stop:1 #8a2bff);"
+                f"}}"
             )
             btn.clicked.connect(self.run_gamer_activate)
-            self.add_neon(btn, self.primary)
+            self.add_neon(btn, Palette.ACCENT_PURPLE)
         btn.setCursor(QCursor(Qt.PointingHandCursor))
         btn.setFixedWidth(400)
         panel_lyt.addWidget(btn, alignment=Qt.AlignCenter)
@@ -3127,8 +3315,63 @@ class TecnoApp(QMainWindow):
             "QPushButton{color:white; border:1px solid #0eb3ff; padding:5px; min-width:80px;}"
         )
         m.exec()
+    def criar_ponto_restauracao(self):
+        """Aciona o serviço de pontos de restauração do Windows e cria
+        um snapshot rotulado pelo TecnoApp. É a mesma operação que o
+        botão "Criar Ponto de Restauração" do design representa.
+
+        Lógica:
+          • garante que o serviço esteja habilitado em C:          • chama Checkpoint-Computer (PowerShell) com descrição padrão
+          • exibe feedback ao usuário
+        """
+        import subprocess as _sp
+        ps = (
+            "$ErrorActionPreference='Stop';"
+            " try {"
+            "   Enable-ComputerRestore -Drive 'C:\' -ErrorAction SilentlyContinue;"
+            "   Checkpoint-Computer -Description 'TecnoApp' -RestorePointType MODIFY_SETTINGS;"
+            "   Write-Output 'OK'"
+            " } catch { Write-Error $_.Exception.Message; exit 1 }"
+        )
+        try:
+            self.btn_restore.setEnabled(False)
+            r = _sp.run(
+                ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+                capture_output=True, text=True, timeout=120,
+                creationflags=getattr(_sp, "CREATE_NO_WINDOW", 0),
+            )
+            ok = (r.returncode == 0)
+        except Exception as e:
+            ok = False
+            r = type("R", (), {"stderr": str(e), "stdout": ""})()
+        finally:
+            self.btn_restore.setEnabled(True)
+
+        m = QMessageBox(self)
+        m.setWindowTitle("Ponto de Restauração")
+        if ok:
+            m.setIcon(QMessageBox.Information)
+            m.setText("Ponto de restauração criado com sucesso.")
+            m.setInformativeText(
+                "O Windows pode limitar a frequência (1 a cada 24h por padrão). "
+                "Use Painel de Controle > Recuperação para revisar."
+            )
+        else:
+            m.setIcon(QMessageBox.Warning)
+            m.setText("Não foi possível criar o ponto de restauração.")
+            err = (getattr(r, "stderr", "") or getattr(r, "stdout", "") or "").strip()
+            m.setInformativeText(
+                err or "Verifique se a Proteção do Sistema está ativa em C:\\."
+            )
+        m.setStyleSheet(
+            "QMessageBox{background:#030407; border:1px solid #0eb3ff;} "
+            "QLabel{color:#ffffff; font-family:'Segoe UI';} "
+            "QPushButton{color:white; border:1px solid #0eb3ff; padding:6px 12px; min-width:80px;}"
+        )
+        m.exec()
+
     def add_title(self, text, color=None): t = QLabel(text); t.setFont(QFont("Segoe UI", 24, QFont.Bold)); t.setStyleSheet(f"color: {color};") if color else None; self.content_lyt.addWidget(t, alignment=Qt.AlignCenter); self.content_lyt.addSpacing(10)
-    def add_status_bar(self, msg): self.content_lyt.addSpacing(25); self.status_lbl = QLabel(msg); self.status_lbl.setStyleSheet("color: #444; font-family: 'Consolas';"); self.content_lyt.addWidget(self.status_lbl, alignment=Qt.AlignCenter)
+    def add_status_bar(self, msg): self.content_lyt.addSpacing(25); self.status_lbl = QLabel(msg); self.status_lbl.setStyleSheet(f"color: {Palette.ACCENT_CYAN}; font-family: 'Consolas'; font-size: 10px;"); self.content_lyt.addWidget(self.status_lbl, alignment=Qt.AlignCenter)
     def add_action_btn(self, text, func): b = QPushButton(text); b.setObjectName("ActionBtn"); b.setFixedWidth(400); b.clicked.connect(func); self.content_lyt.addWidget(b, alignment=Qt.AlignCenter); self.add_neon(b, self.primary)
     def paint_grid(self, event):
         p = QPainter(self.content_container); p.setPen(QPen(QColor(14, 179, 255, 12)))
@@ -3145,6 +3388,19 @@ class TecnoApp(QMainWindow):
             b.setIconSize(QSize(18, 18))
         b.clicked.connect(f)
         return b
+
+    def _set_active_menu(self, key):
+        """Marca visualmente o item ativo da sidebar.
+
+        Não altera lógica de navegação — apenas estado visual.
+        """
+        for k, btn in getattr(self, "_menu_buttons", {}).items():
+            if hasattr(btn, "set_active"):
+                btn.set_active(k == key)
+        gamer = getattr(self, "btn_gamer_nav", None)
+        if gamer is not None and hasattr(gamer, "set_active"):
+            gamer.set_active(key == "gamer")
+
     def clear_screen(self):
         while self.content_lyt.count():
             i = self.content_lyt.takeAt(0)

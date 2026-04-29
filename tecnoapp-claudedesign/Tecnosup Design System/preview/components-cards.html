@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #030407; font-family: 'Segoe UI', system-ui, sans-serif; padding: 20px; display: flex; gap: 14px; }
+  .card { background: #0a0d14; border: 1px solid #1a2230; border-radius: 12px; padding: 20px; flex: 1; display: flex; flex-direction: column; gap: 10px; }
+  .hero { background: #0a0d14; border: 1px solid #1a2230; border-radius: 12px; flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .stripe { height: 3px; border-radius: 12px 12px 0 0; }
+  .hero-body { padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+  .section-label { color: #0eb3ff; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+  .metric { color: #fff; font-size: 32px; font-weight: 700; text-align: center; }
+  .metric span { font-size: 14px; font-weight: 400; color: #888; }
+  .sub { color: #888; font-size: 11px; text-align: center; }
+  .btn { background: #0eb3ff; color: #000; font-weight: 700; border: none; border-radius: 8px; padding: 10px; font-size: 13px; width: 100%; box-shadow: 0 0 12px rgba(14,179,255,0.4); }
+  .card-title { color: #fff; font-size: 14px; font-weight: 700; }
+  .card-body  { color: #888; font-size: 11px; line-height: 1.6; }
+  .progress-wrap { display: flex; flex-direction: column; gap: 3px; }
+  .progress-bar { background: #04060a; border: 1px solid #1a2230; border-radius: 4px; height: 8px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 3px; }
+  .row { display: flex; justify-content: space-between; align-items: center; }
+  .pct { color: #0eb3ff; font-family: 'Consolas',monospace; font-size: 12px; font-weight: 700; }
+</style>
+</head>
+<body>
+  <!-- Base Card -->
+  <div class="card">
+    <div class="section-label">DISCOS</div>
+    <div class="progress-wrap">
+      <div class="row"><span style="color:#fff;font-family:'Consolas',monospace;font-size:12px;font-weight:700">C:\</span><span class="pct">72%</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:72%;background:#0eb3ff"></div></div>
+      <div style="color:#888;font-family:'Consolas',monospace;font-size:10px">670 GB usados · 260 GB livres · 931 GB total</div>
+    </div>
+    <div class="progress-wrap" style="margin-top:6px">
+      <div class="row"><span style="color:#fff;font-family:'Consolas',monospace;font-size:12px;font-weight:700">D:\</span><span class="pct" style="color:#ffbd2e">88%</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:88%;background:#ffbd2e"></div></div>
+      <div style="color:#888;font-family:'Consolas',monospace;font-size:10px">440 GB usados · 60 GB livres · 500 GB total</div>
+    </div>
+  </div>
+
+  <!-- HeroCard cyan -->
+  <div class="hero">
+    <div class="stripe" style="background:#0eb3ff;box-shadow:0 0 8px rgba(14,179,255,0.5)"></div>
+    <div class="hero-body">
+      <div class="section-label" style="text-align:center">LIMPEZA RÁPIDA</div>
+      <div class="metric">7 de 9</div>
+      <div class="sub">categorias ativas</div>
+      <button class="btn">INICIAR LIMPEZA</button>
+      <button style="background:transparent;border:1px solid #0eb3ff;color:#0eb3ff;border-radius:6px;padding:6px;font-size:11px;font-weight:700;width:100%">Configurar o que é limpo →</button>
+    </div>
+  </div>
+
+  <!-- HeroCard purple (Gamer) -->
+  <div class="hero">
+    <div class="stripe" style="background:#7000ff;box-shadow:0 0 8px rgba(112,0,255,0.5)"></div>
+    <div class="hero-body">
+      <div class="section-label" style="text-align:center;color:#7000ff">MODO GAMER</div>
+      <div class="metric" style="color:#7000ff">● INATIVO</div>
+      <div class="sub">17 tweaks reversíveis</div>
+      <button style="background:linear-gradient(90deg,#0eb3ff,#7000ff);color:#fff;font-weight:700;border:none;border-radius:8px;padding:10px;font-size:13px;width:100%">ATIVAR MODO GAMER</button>
+    </div>
+  </div>
+</body>
+</html>
