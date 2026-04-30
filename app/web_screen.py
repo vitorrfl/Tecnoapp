@@ -20,7 +20,11 @@ class _Page(QWebEnginePage):
     """Encaminha console.log/warn/error do JS para o stdout do Python."""
 
     def javaScriptConsoleMessage(self, level, message, line, source_id):  # noqa: N802
-        prefix = {0: "log", 1: "warn", 2: "err"}.get(int(level), "log")
+        try:
+            lv = int(level.value) if hasattr(level, "value") else int(level)
+        except Exception:
+            lv = 0
+        prefix = {0: "log", 1: "warn", 2: "err"}.get(lv, "log")
         print(f"[web/{prefix}] {message}  ({source_id}:{line})")
 
 

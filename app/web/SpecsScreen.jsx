@@ -1,5 +1,23 @@
 // Especificações (Hardware Specs) — wired to bridge
 
+function _specsFmtSize(bytes) {
+  if (!bytes || bytes <= 0) return '—';
+  const u = ['B','KB','MB','GB','TB'];
+  let i = 0, v = bytes;
+  while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+  return `${v.toFixed(v >= 100 ? 0 : 1)} ${u[i]}`;
+}
+
+function SpecsAnimatedBar({ pct, color }) {
+  const [width, setWidth] = React.useState(0);
+  React.useEffect(() => { setWidth(pct); }, [pct]);
+  return (
+    <div style={{background:'#04060a',border:'1px solid #1a2230',borderRadius:4,height:6,width:'100%',overflow:'hidden'}}>
+      <div style={{width:`${Math.max(0,Math.min(100,width))}%`,height:'100%',background:color,borderRadius:3,transition:'width 0.75s cubic-bezier(0.4,0,0.2,1)'}} />
+    </div>
+  );
+}
+
 function SpecsScreen() {
   const tel = (window.useTelemetry ? window.useTelemetry() : window.__telemetry) || {};
   const hw  = (window.useHardware  ? window.useHardware()  : window.__hardware)  || null;
@@ -22,26 +40,8 @@ function SpecsScreen() {
     return () => clearInterval(t);
   }, []);
 
-  function fmtSize(bytes) {
-    if (!bytes || bytes <= 0) return '—';
-    const u = ['B','KB','MB','GB','TB'];
-    let i = 0, v = bytes;
-    while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
-    return `${v.toFixed(v >= 100 ? 0 : 1)} ${u[i]}`;
-  }
-
-  function AnimatedBar({ pct, color }) {
-    const [width, setWidth] = React.useState(0);
-    React.useEffect(() => {
-      const t = setTimeout(() => setWidth(pct), 60);
-      return () => clearTimeout(t);
-    }, [pct]);
-    return (
-      <div style={{background:'#04060a',border:'1px solid #1a2230',borderRadius:4,height:6,width:'100%',overflow:'hidden'}}>
-        <div style={{width:`${width}%`,height:'100%',background:color,borderRadius:3,transition:'width 0.75s cubic-bezier(0.4,0,0.2,1)'}} />
-      </div>
-    );
-  }
+  const fmtSize = _specsFmtSize;
+  const AnimatedBar = SpecsAnimatedBar;
 
   const cpu  = tel.cpu  || { pct:0, name:'—', threads:0, freq:'—' };
   const ram  = tel.ram  || { pct:0, used:0, total:0 };

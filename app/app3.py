@@ -953,6 +953,7 @@ class TecnoApp(QMainWindow):
         main_layout.setContentsMargins(0, 0, 0, 0)
 
         sidebar = QFrame(); sidebar.setObjectName("Sidebar"); sidebar.setFixedWidth(220)
+        self._qt_sidebar = sidebar
         side_lyt = QVBoxLayout(sidebar); side_lyt.setContentsMargins(15, 24, 15, 18); side_lyt.setSpacing(10)
 
         side_lyt.addWidget(self._build_logo_widget(), alignment=Qt.AlignCenter)
@@ -1010,7 +1011,9 @@ class TecnoApp(QMainWindow):
         self.content_lyt.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(self.content_container)
 
-        if os.environ.get("TECNOAPP_WEB") == "1":
+        web_mode = ("--web" in sys.argv) or (os.environ.get("TECNOAPP_WEB") == "1")
+        print(f"[TecnoApp] startup mode = {'WEB (Qt WebEngine)' if web_mode else 'CLASSIC (QWidgets)'}", flush=True)
+        if web_mode:
             self.show_web()
         else:
             self.show_home()
@@ -1019,10 +1022,15 @@ class TecnoApp(QMainWindow):
         """Substitui toda a área de conteúdo pelo WebView (PoC pixel-perfect)."""
         from web_screen import WebScreen
         self.clear_screen()
+        if hasattr(self, "_qt_sidebar") and self._qt_sidebar is not None:
+            self._qt_sidebar.hide()
+        # Desliga o paint do grid Qt — o HTML já desenha o próprio bg_grid.png
+        self.content_container.paintEvent = lambda e: None
         if hasattr(self, "_web_view") and self._web_view is not None:
             self._web_view.deleteLater()
         self._web_view = WebScreen(main_window=self, parent=self.content_container)
         self.content_lyt.setContentsMargins(0, 0, 0, 0)
+        self.content_lyt.setSpacing(0)
         self.content_lyt.setAlignment(Qt.AlignTop)
         self.content_lyt.addWidget(self._web_view, 1)
 

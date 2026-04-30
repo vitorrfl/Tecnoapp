@@ -79,7 +79,7 @@ function Sidebar({ active, onNavigate }) {
 
       {/* Logo */}
       <div className="sb-logo" onClick={() => onNavigate('home')}>
-        <img src="../../assets/logo.png" alt="Tecnosup" />
+        <img src="assets/logo.png" alt="Tecnosup" />
       </div>
 
       {/* Nav items */}

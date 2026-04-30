@@ -1,5 +1,51 @@
 // Home / Dashboard screen — wired to Python bridge via window.useTelemetry()
 
+function _fmtSize(bytes) {
+  if (!bytes || bytes <= 0) return '—';
+  const u = ['B','KB','MB','GB','TB'];
+  let i = 0, v = bytes;
+  while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+  return `${v.toFixed(v >= 100 ? 0 : 1)} ${u[i]}`;
+}
+
+function AnimatedBar({ pct, color }) {
+  // Mount-only "0 → pct" intro. After mount, props update keeps the same
+  // useState (no remount), so width tracks pct fluidly via CSS transition
+  // without snapping back to 0 on every parent re-render.
+  const [width, setWidth] = React.useState(0);
+  React.useEffect(() => { setWidth(pct); }, [pct]);
+  return (
+    <div style={{background:'#04060a',border:'1px solid #1a2230',borderRadius:4,height:8,overflow:'hidden'}}>
+      <div style={{width:`${Math.max(0, Math.min(100, width))}%`,height:'100%',background:color,borderRadius:3,transition:'width 0.7s cubic-bezier(0.4,0,0.2,1)'}} />
+    </div>
+  );
+}
+
+function MetricCard({ label, value, unit, pct, color }) {
+  return (
+    <div style={{...TS.card, flex:1, display:'flex', flexDirection:'column', gap:10}}>
+      <div style={TS.sectionLabel}>{label}</div>
+      <div style={{textAlign:'center'}}>
+        <span style={{fontFamily:T.fontBody,fontSize:28,fontWeight:700,color:T.fgPrimary}}>{value}</span>
+        <span style={{fontFamily:T.fontBody,fontSize:12,color:T.fgMuted}}> {unit}</span>
+      </div>
+      {pct != null && <AnimatedBar pct={pct} color={color||T.cyan} />}
+    </div>
+  );
+}
+
+function ModuleCard({ label, desc, color, btnLabel, btnClass, btnRef, onNav }) {
+  return (
+    <div style={{...TS.card, flex:1, display:'flex', flexDirection:'column', gap:10, borderTop:`3px solid ${color}`}}>
+      <div style={{...TS.sectionLabel, color}}>{label}</div>
+      <div style={TS.bodyText}>{desc}</div>
+      <button ref={btnRef} className={btnClass || 'mod-btn'} onClick={onNav}>
+        {btnLabel} →
+      </button>
+    </div>
+  );
+}
+
 function HomeScreen() {
   const tel = (window.useTelemetry ? window.useTelemetry() : window.__telemetry) || {};
   const cpu  = tel.cpu  || { pct: 0, name: '—', threads: 0, freq: '—' };
@@ -7,27 +53,6 @@ function HomeScreen() {
   const disk = tel.disk || { pct: 0, used: 0, total: 0 };
   const proc = tel.proc != null ? tel.proc : 0;
   const os_  = tel.os   || { system: '—', user: '—', version: '—' };
-
-  function fmtSize(bytes) {
-    if (!bytes || bytes <= 0) return '—';
-    const u = ['B','KB','MB','GB','TB'];
-    let i = 0, v = bytes;
-    while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
-    return `${v.toFixed(v >= 100 ? 0 : 1)} ${u[i]}`;
-  }
-
-  function AnimatedBar({ pct, color }) {
-    const [width, setWidth] = React.useState(0);
-    React.useEffect(() => {
-      const t = setTimeout(() => setWidth(pct), 80);
-      return () => clearTimeout(t);
-    }, [pct]);
-    return (
-      <div style={{background:'#04060a',border:'1px solid #1a2230',borderRadius:4,height:8,overflow:'hidden'}}>
-        <div style={{width:`${width}%`,height:'100%',background:color,borderRadius:3,transition:'width 0.7s cubic-bezier(0.4,0,0.2,1)'}} />
-      </div>
-    );
-  }
 
   const containerStyle = {
     padding: '22px 32px',
@@ -39,37 +64,8 @@ function HomeScreen() {
     overflowY: 'auto',
   };
 
-  function MetricCard({ label, value, unit, pct, color }) {
-    return (
-      <div style={{...TS.card, flex:1, display:'flex', flexDirection:'column', gap:10}}>
-        <div style={TS.sectionLabel}>{label}</div>
-        <div style={{textAlign:'center'}}>
-          <span style={{fontFamily:T.fontBody,fontSize:28,fontWeight:700,color:T.fgPrimary}}>{value}</span>
-          <span style={{fontFamily:T.fontBody,fontSize:12,color:T.fgMuted}}> {unit}</span>
-        </div>
-        {pct != null && <AnimatedBar pct={pct} color={color||T.cyan} />}
-      </div>
-    );
-  }
-
   function navigate(target) {
     window.dispatchEvent(new CustomEvent('navigate', { detail: target }));
-  }
-
-  function ModuleCard({ label, desc, color, btnLabel, btnClass, btnRef, onNav }) {
-    return (
-      <div style={{...TS.card, flex:1, display:'flex', flexDirection:'column', gap:10, borderTop:`3px solid ${color}`}}>
-        <div style={{...TS.sectionLabel, color}}>{label}</div>
-        <div style={TS.bodyText}>{desc}</div>
-        <button
-          ref={btnRef}
-          className={btnClass || 'mod-btn'}
-          onClick={onNav}
-        >
-          {btnLabel} →
-        </button>
-      </div>
-    );
   }
 
   const gamerBtnRef = React.useRef(null);
@@ -146,7 +142,7 @@ function HomeScreen() {
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'4px 24px',marginTop:6}}>
           {[
             ['Processador', cpu.name || '—'],
-            ['Memória RAM', fmtSize(ram.total)],
+            ['Memória RAM', _fmtSize(ram.total)],
             ['Sistema',     os_.system || '—'],
             ['Uptime',      tel.uptime || '—'],
           ].map(([k,v]) => (
