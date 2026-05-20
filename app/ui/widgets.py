@@ -22,44 +22,7 @@ from PySide6.QtCore import Qt, QTimer, QPointF, QElapsedTimer
 import math
 
 from .icons import lucide_pixmap
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# Design tokens
-# ═══════════════════════════════════════════════════════════════════════
-
-class Palette:
-    """Paleta central do produto — referência única para todos os componentes."""
-    # Fundo
-    BG_BASE        = "#030407"
-    BG_CARD        = "#0a0d14"
-    BG_CARD_HOVER  = "#0d1220"
-    # Bordas
-    BORDER_SUBTLE  = "#1a2230"
-    # Accents de módulo
-    ACCENT_CYAN    = "#0eb3ff"   # Limpeza, Otimização, Reparos
-    ACCENT_PURPLE  = "#7000ff"   # Modo Gamer
-    # Estados
-    STATE_ON       = "#4caf50"
-    STATE_WARN     = "#ffbd2e"
-    STATE_OFF      = "#888"
-    STATE_OFF_BRD  = "#333"
-    STATE_DANGER   = "#ff4b4b"
-    # Texto
-    FG_PRIMARY     = "#ffffff"
-    FG_BODY        = "#ccd2e0"
-    FG_MUTED       = "#888"
-    FG_SUBTLE      = "#444"
-
-
-class Spacing:
-    """Medidas constantes usadas pelos componentes."""
-    CARD_RADIUS       = 12
-    CARD_PADDING      = 20
-    CARD_BORDER_WIDTH = 1
-    STRIPE_HEIGHT     = 3
-    CHIP_HEIGHT       = 24
-    CHIP_RADIUS       = 12
+from .tokens import Palette, Spacing
 
 
 # ═══════════════════════════════════════════════════════════════════════

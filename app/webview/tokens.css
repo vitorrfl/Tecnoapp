@@ -1,0 +1,101 @@
+/* ───────────────────────────────────────────────────────────────
+   Tecnosup Design System — Tokens
+   Para uso em Qt WebEngine (Chromium embutido no Windows)
+   ─────────────────────────────────────────────────────────────── */
+
+:root {
+  /* ── Backgrounds ──────────────────────────────────────────────── */
+  --bg-base:          #030407;
+  --bg-card:          #0a0d14;
+  --bg-card-hover:    #0d1220;
+  --bg-sidebar:       rgba(3, 4, 7, 0.97);
+  --bg-terminal:      #020305;
+
+  /* ── Borders ──────────────────────────────────────────────────── */
+  --border-subtle:    #1a2230;
+  --border-focus:     rgba(14, 179, 255, 0.6);
+  --border-sidebar:   rgba(14, 179, 255, 0.10);
+  --border-cyan-25:   rgba(14, 179, 255, 0.25);
+  --border-cyan-45:   rgba(14, 179, 255, 0.45);
+  --border-warn-30:   rgba(255, 189, 46, 0.30);
+
+  /* ── Accents ──────────────────────────────────────────────────── */
+  --cyan:             #0eb3ff;
+  --cyan-bright:      #2dc3ff;
+  --purple:           #7000ff;
+  --purple-bright:    #8a2bff;
+  --cyan-dim:         rgba(14, 179, 255, 0.10);
+  --cyan-faint:       rgba(14, 179, 255, 0.06);
+  --purple-dim:       rgba(112, 0, 255, 0.15);
+
+  /* ── States ───────────────────────────────────────────────────── */
+  --state-on:         #4caf50;
+  --state-on-dim:     rgba(76, 175, 80, 0.12);
+  --state-on-border:  rgba(76, 175, 80, 0.30);
+  --state-warn:       #ffbd2e;
+  --state-warn-dim:   rgba(255, 189, 46, 0.10);
+  --state-off:        #888888;
+  --state-off-border: #333333;
+  --state-danger:     #ff4b4b;
+  --state-orange:     #ff8a4b;
+
+  /* ── Foreground ───────────────────────────────────────────────── */
+  --fg-primary:       #ffffff;
+  --fg-body:          #ccd2e0;
+  --fg-muted:         #888888;
+  --fg-subtle:        #444444;
+  --fg-dim:           #555555;
+
+  /* ── Glows ────────────────────────────────────────────────────── */
+  --glow-cyan:        0 0 16px rgba(14, 179, 255, 0.55);
+  --glow-cyan-sm:     0 0 8px  rgba(14, 179, 255, 0.40);
+  --glow-purple:      0 0 16px rgba(112, 0, 255, 0.55);
+  --glow-green:       0 0 14px rgba(76, 175, 80, 0.50);
+
+  /* ── Gradients ────────────────────────────────────────────────── */
+  --gradient-gamer:       linear-gradient(90deg, #0eb3ff 0%, #7000ff 100%);
+  --gradient-gamer-hover: linear-gradient(90deg, #2dc3ff 0%, #8a2bff 100%);
+
+  /* ── Fonts (sistema Windows — sem @import) ────────────────────── */
+  --font-body:        'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono:        'Consolas', 'Courier New', monospace;
+
+  /* ── Font sizes ───────────────────────────────────────────────── */
+  --text-9:   9px;
+  --text-10:  10px;
+  --text-11:  11px;
+  --text-12:  12px;
+  --text-14:  14px;
+  --text-16:  16px;
+  --text-22:  22px;
+  --text-28:  28px;
+  --text-32:  32px;
+
+  /* ── Weights ──────────────────────────────────────────────────── */
+  --weight-normal:    400;
+  --weight-semibold:  600;
+  --weight-bold:      700;
+
+  /* ── Tracking ─────────────────────────────────────────────────── */
+  --tracking-label:   1px;
+  --tracking-tagline: 4px;
+
+  /* ── Spacing ──────────────────────────────────────────────────── */
+  --space-xs:   4px;
+  --space-sm:   8px;
+  --space-md:   12px;
+  --space-lg:   14px;
+  --space-xl:   20px;
+  --space-2xl:  24px;
+  --space-3xl:  32px;
+
+  --sidebar-width:    220px;
+
+  /* ── Radii ────────────────────────────────────────────────────── */
+  --radius-card:    12px;
+  --radius-btn:     8px;
+  --radius-chip:    12px;
+  --radius-bar:     4px;
+  --radius-row:     6px;
+  --radius-scroll:  3px;
+}

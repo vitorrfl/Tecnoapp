@@ -10,9 +10,9 @@ Uso típico:
 
 from .widgets import (
     Card, HeroCard, MetricLabel, Chip, ResponsiveCardRow,
-    Palette, Spacing,
     SidebarButton, SidebarRestoreButton, SidebarExitButton, GamerSidebarButton,
 )
+from .tokens import Palette, Spacing, Typography, GLOBAL_STYLESHEET
 from .icons import lucide_icon, lucide_pixmap
 
 __all__ = [
@@ -23,6 +23,8 @@ __all__ = [
     "ResponsiveCardRow",
     "Palette",
     "Spacing",
+    "Typography",
+    "GLOBAL_STYLESHEET",
     "SidebarButton",
     "SidebarRestoreButton",
     "SidebarExitButton",

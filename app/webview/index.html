@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TecnoApp · Tecnosup · Soluções Digitais</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="styles.css">
+<!-- QWebChannel bridge -->
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+<script>
+  // Inicializa bridge Qt assim que o canal estiver pronto
+  if (typeof qt !== 'undefined' && qt.webChannelTransport) {
+    new QWebChannel(qt.webChannelTransport, function (channel) {
+      window.bridge = channel.objects.bridge;
+    });
+  }
+</script>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ─────────── SIDEBAR ─────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo" onclick="navigate('home')">
+      <img src="assets/logo.png" alt="Tecnosup">
+    </div>
+
+    <button class="menu-btn" data-screen="home" onclick="navigate('home')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      HOME
+    </button>
+    <button class="menu-btn" data-screen="limpeza" onclick="navigate('limpeza')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      LIMPEZA
+    </button>
+    <button class="menu-btn" data-screen="otimizacao" onclick="navigate('otimizacao')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      OTIMIZAÇÃO
+    </button>
+    <button class="menu-btn" data-screen="reparos" onclick="navigate('reparos')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      REPAROS
+    </button>
+    <button class="menu-btn" data-screen="specs" onclick="navigate('specs')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      ESPECIFICAÇÕES
+    </button>
+
+    <button class="menu-btn-gamer" data-screen="gamer" onclick="navigate('gamer')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="12" x2="18" y2="12"/><line x1="12" y1="6" x2="12" y2="18"/><rect x="2" y="6" width="20" height="12" rx="2"/></svg>
+      MODO GAMER
+    </button>
+
+    <div class="sidebar-spacer"></div>
+
+    <button class="btn-restore" onclick="window.bridge?.onRestorePoint?.()">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Criar Ponto de Restauração
+    </button>
+
+    <button class="btn-exit" onclick="window.bridge?.onExit?.()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      SAIR
+    </button>
+
+    <div class="version-tag">v 1.0 · Tecnosup</div>
+  </aside>
+
+  <!-- ─────────── CONTENT ─────────── -->
+  <main class="content">
+
+    <!-- ─── HOME ─── -->
+    <section id="screen-home" class="screen">
+      <div>
+        <div class="h1">Olá, <span data-bind="user">Usuário</span></div>
+        <div class="subtitle"><span data-bind="os">Windows 11</span> · uptime <span data-bind="uptime">—</span> · última limpeza <span data-bind="last_clean">—</span></div>
+      </div>
+
+      <div class="row">
+        <div class="card flex-1" data-metric="cpu">
+          <div class="label">CPU</div>
+          <div class="center" style="margin-top:10px"><span class="metric metric-value">0</span><span class="metric-unit"> %</span></div>
+          <div class="progress-track" style="margin-top:10px"><div class="progress-fill" data-pct="0" style="width:0%"></div></div>
+          <div class="caption center" style="margin-top:6px" data-bind="cpu_sub">—</div>
+        </div>
+        <div class="card flex-1" data-metric="ram">
+          <div class="label">MEMÓRIA</div>
+          <div class="center" style="margin-top:10px"><span class="metric metric-value">0</span><span class="metric-unit"> %</span></div>
+          <div class="progress-track" style="margin-top:10px"><div class="progress-fill" data-pct="0" style="width:0%"></div></div>
+          <div class="caption center" style="margin-top:6px" data-bind="ram_sub">—</div>
+        </div>
+        <div class="card flex-1" data-metric="disk">
+          <div class="label">DISCO C:</div>
+          <div class="center" style="margin-top:10px"><span class="metric metric-value">0</span><span class="metric-unit"> %</span></div>
+          <div class="progress-track" style="margin-top:10px"><div class="progress-fill" data-pct="0" style="width:0%"></div></div>
+          <div class="caption center" style="margin-top:6px" data-bind="disk_sub">—</div>
+        </div>
+        <div class="card flex-1" data-metric="proc">
+          <div class="label">PROCESSOS</div>
+          <div class="center" style="margin-top:10px"><span class="metric metric-value">—</span></div>
+          <div class="caption center" style="margin-top:10px">em execução</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="card-hero flex-1 col" style="gap:10px">
+          <div class="label">LIMPEZA</div>
+          <div class="body" style="flex:1">Remova arquivos temporários e libere espaço em disco.</div>
+          <button class="btn-secondary" onclick="navigate('limpeza')">Limpar agora →</button>
+        </div>
+        <div class="card-hero flex-1 col" style="gap:10px">
+          <div class="label">OTIMIZAÇÃO</div>
+          <div class="body" style="flex:1">Ative tweaks de desempenho e plano de energia.</div>
+          <button class="btn-secondary" onclick="navigate('otimizacao')">Otimizar →</button>
+        </div>
+        <div class="card-hero flex-1 col" style="gap:10px">
+          <div class="label">REPAROS</div>
+          <div class="body" style="flex:1">Repare arquivos do sistema, rede e Windows Update.</div>
+          <button class="btn-secondary" onclick="navigate('reparos')">Reparar →</button>
+        </div>
+        <div class="card-hero purple flex-1 col" style="gap:10px">
+          <div class="label" style="color:var(--purple)">MODO GAMER</div>
+          <div class="body" style="flex:1">17 tweaks reversíveis para mais FPS e menos latência.</div>
+          <button class="btn-gamer" style="padding:8px 14px;font-size:11px" onclick="navigate('gamer')">Ativar →</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="label">SISTEMA</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 24px;margin-top:8px">
+          <div class="between" style="padding:4px 0;border-bottom:1px solid var(--border-subtle)"><span class="caption" style="min-width:120px">Processador</span><span class="mono" style="font-size:10px" data-bind="cpu_name">—</span></div>
+          <div class="between" style="padding:4px 0;border-bottom:1px solid var(--border-subtle)"><span class="caption" style="min-width:120px">Memória RAM</span><span class="mono" style="font-size:10px" data-bind="ram_info">—</span></div>
+          <div class="between" style="padding:4px 0;border-bottom:1px solid var(--border-subtle)"><span class="caption" style="min-width:120px">Sistema</span><span class="mono" style="font-size:10px" data-bind="os_full">—</span></div>
+          <div class="between" style="padding:4px 0;border-bottom:1px solid var(--border-subtle)"><span class="caption" style="min-width:120px">Uptime</span><span class="mono" style="font-size:10px" data-bind="uptime">—</span></div>
+        </div>
+      </div>
+
+      <div class="status-bar" data-bind="home_status">Sistema verificado — nenhuma ação pendente.</div>
+    </section>
+
+    <!-- ─── LIMPEZA ─── -->
+    <section id="screen-limpeza" class="screen">
+      <div>
+        <div class="h1">LIMPEZA</div>
+        <div class="subtitle">Limpeza segura com ferramentas nativas do Windows</div>
+      </div>
+
+      <div class="card-hero card-hero-center">
+        <div class="label">LIMPEZA RÁPIDA</div>
+        <div style="font-size:32px;font-weight:700;color:var(--fg-primary)">
+          <span data-bind="clean_active">—</span>
+          <span style="font-size:14px;font-weight:400;color:var(--fg-muted)"> de <span data-bind="clean_total">—</span></span>
+        </div>
+        <div class="body">categorias ativas</div>
+        <button class="btn-primary" style="width:360px;margin-top:4px" onclick="window.bridge?.onStartClean?.()">INICIAR LIMPEZA</button>
+        <button class="btn-secondary" style="width:240px" onclick="window.bridge?.onConfigClean?.()">Configurar o que é limpo →</button>
+      </div>
+
+      <div class="terminal" id="clean-terminal" style="display:none"></div>
+
+      <div class="status-bar" data-bind="clean_status">Última limpeza: —</div>
+    </section>
+
+    <!-- ─── OTIMIZAÇÃO ─── -->
+    <section id="screen-otimizacao" class="screen">
+      <div>
+        <div class="h1">OTIMIZAÇÃO</div>
+        <div class="subtitle">Tweaks persistentes — revertidos individualmente ou todos de uma vez</div>
+      </div>
+
+      <div class="card-hero card-hero-center">
+        <div class="label">ESTADO ATUAL</div>
+        <div style="font-size:32px;font-weight:700;color:var(--fg-primary)">
+          <span data-bind="opt_active">—</span>
+          <span style="font-size:14px;color:var(--fg-muted);font-weight:400"> de <span data-bind="opt_total">—</span></span>
+        </div>
+        <div class="body">otimizações aplicadas</div>
+      </div>
+
+      <div class="col gap-sm" id="opt-list">
+        <!-- Preenchido pelo Python via bridge ou JS -->
+      </div>
+
+      <div class="status-bar" data-bind="opt_status">—</div>
+    </section>
+
+    <!-- ─── REPAROS ─── -->
+    <section id="screen-reparos" class="screen">
+      <div>
+        <div class="h1">REPAROS</div>
+        <div class="subtitle">Ferramentas de diagnóstico e restauração do Windows</div>
+      </div>
+
+      <div class="label">ESSENCIAL</div>
+
+      <div class="card">
+        <div class="between" style="align-items:flex-start;gap:12px">
+          <div style="flex:1">
+            <span style="color:#fff;font-size:12px;font-weight:600">Reparar Arquivos do Sistema (DISM + SFC)</span>
+            <div class="body" style="font-size:10px;margin-top:3px">DISM → SFC. Valida e restaura arquivos corrompidos do Windows.</div>
+            <div class="caption" style="font-size:9px;color:var(--fg-subtle);margin-top:3px">~30 – 50 min</div>
+          </div>
+          <button class="btn-apply" onclick="window.bridge?.onRunRepair?.('sfc_dism')">Executar</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="between" style="align-items:flex-start;gap:12px">
+          <div style="flex:1">
+            <div class="row gap-sm" style="align-items:center">
+              <span style="color:#fff;font-size:12px;font-weight:600">Reparar Conexão de Rede</span>
+              <span class="chip reboot">REBOOT</span>
+            </div>
+            <div class="body" style="font-size:10px;margin-top:3px">Reset completo: Winsock, TCP/IP, IP release/renew, flush DNS.</div>
+            <div class="caption" style="font-size:9px;color:var(--fg-subtle);margin-top:3px">~1 min</div>
+          </div>
+          <button class="btn-apply" onclick="window.bridge?.onRunRepair?.('network_reset')">Executar</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="between" style="align-items:flex-start;gap:12px">
+          <div style="flex:1">
+            <span style="color:#fff;font-size:12px;font-weight:600">Reparar Windows Update</span>
+            <div class="body" style="font-size:10px;margin-top:3px">Para serviços, limpa SoftwareDistribution e catroot2, reinicia.</div>
+            <div class="caption" style="font-size:9px;color:var(--fg-subtle);margin-top:3px">~3 min</div>
+          </div>
+          <button class="btn-apply" onclick="window.bridge?.onRunRepair?.('wu_reset')">Executar</button>
+        </div>
+      </div>
+
+      <div class="label" style="margin-top:4px">AVANÇADO</div>
+
+      <div class="card">
+        <div class="between" style="align-items:flex-start;gap:12px">
+          <div style="flex:1">
+            <span style="color:#fff;font-size:12px;font-weight:600">Reparar Microsoft Store</span>
+            <div class="body" style="font-size:10px;margin-top:3px">Executa wsreset — corrige apps UWP que não abrem.</div>
+            <div class="caption" style="font-size:9px;color:var(--fg-subtle);margin-top:3px">~1 min</div>
+          </div>
+          <button class="btn-apply" onclick="window.bridge?.onRunRepair?.('store_reset')">Executar</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="between" style="align-items:flex-start;gap:12px">
+          <div style="flex:1">
+            <span style="color:#fff;font-size:12px;font-weight:600">Reparar Fila de Impressão</span>
+            <div class="body" style="font-size:10px;margin-top:3px">Para spooler, limpa fila travada, reinicia serviço.</div>
+            <div class="caption" style="font-size:9px;color:var(--fg-subtle);margin-top:3px">~1 min</div>
+          </div>
+          <button class="btn-apply" onclick="window.bridge?.onRunRepair?.('printer_reset')">Executar</button>
+        </div>
+      </div>
+
+      <div class="terminal" id="repair-terminal" style="display:none"></div>
+
+      <div class="status-bar" data-bind="repair_status">Nenhum reparo executado ainda.</div>
+    </section>
+
+    <!-- ─── ESPECIFICAÇÕES ─── -->
+    <section id="screen-specs" class="screen">
+      <div>
+        <div class="h1">ESPECIFICAÇÕES</div>
+        <div class="subtitle">Visão completa do sistema · atualizada em tempo real</div>
+      </div>
+
+      <div class="row">
+        <div class="card flex-1 col gap-sm" style="align-items:center" data-metric="spec_cpu">
+          <div class="label">CPU</div>
+          <div style="font-size:28px;font-weight:700;color:var(--fg-primary)"><span class="metric-value">0</span><span style="font-size:12px;color:var(--fg-muted)"> %</span></div>
+          <div class="progress-track" style="width:100%;height:6px"><div class="progress-fill" data-pct="0" style="width:0%"></div></div>
+        </div>
+        <div class="card flex-1 col gap-sm" style="align-items:center" data-metric="spec_ram">
+          <div class="label">RAM</div>
+          <div style="font-size:28px;font-weight:700;color:var(--fg-primary)"><span class="metric-value">0</span><span style="font-size:12px;color:var(--fg-muted)"> %</span></div>
+          <div class="progress-track" style="width:100%;height:6px"><div class="progress-fill" data-pct="0" style="width:0%"></div></div>
+        </div>
+        <div class="card flex-1 col gap-sm" style="align-items:center" data-metric="spec_disk">
+          <div class="label">DISCO C:</div>
+          <div style="font-size:28px;font-weight:700;color:var(--fg-primary)"><span class="metric-value">0</span><span style="font-size:12px;color:var(--fg-muted)"> %</span></div>
+          <div class="progress-track" style="width:100%;height:6px"><div class="progress-fill" data-pct="0" style="width:0%"></div></div>
+        </div>
+        <div class="card flex-1 col gap-sm" style="align-items:center">
+          <div class="label">PROCESSOS</div>
+          <div style="font-size:28px;font-weight:700;color:var(--fg-primary)" data-bind="spec_proc">—</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="label">HARDWARE</div>
+        <div style="display:flex;flex-direction:column;margin-top:8px">
+          <div class="row" style="gap:16px;padding:7px 0;border-bottom:1px solid var(--border-subtle);align-items:baseline">
+            <span class="caption" style="min-width:160px">Sistema Operacional</span>
+            <span class="mono" style="font-size:11px;color:var(--fg-primary);font-weight:600" data-bind="hw_os">—</span>
+          </div>
+          <div class="row" style="gap:16px;padding:7px 0;border-bottom:1px solid var(--border-subtle);align-items:baseline">
+            <span class="caption" style="min-width:160px">Processador</span>
+            <span class="mono" style="font-size:11px;color:var(--fg-primary);font-weight:600" data-bind="hw_cpu">—</span>
+          </div>
+          <div class="row" style="gap:16px;padding:7px 0;border-bottom:1px solid var(--border-subtle);align-items:baseline">
+            <span class="caption" style="min-width:160px">Memória RAM</span>
+            <span class="mono" style="font-size:11px;color:var(--fg-primary);font-weight:600" data-bind="hw_ram">—</span>
+          </div>
+          <div class="row" style="gap:16px;padding:7px 0;border-bottom:1px solid var(--border-subtle);align-items:baseline">
+            <span class="caption" style="min-width:160px">Placa-mãe</span>
+            <span class="mono" style="font-size:11px;color:var(--fg-primary);font-weight:600" data-bind="hw_mobo">—</span>
+          </div>
+          <div class="row" style="gap:16px;padding:7px 0;border-bottom:1px solid var(--border-subtle);align-items:baseline">
+            <span class="caption" style="min-width:160px">GPU</span>
+            <span class="mono" style="font-size:11px;color:var(--fg-primary);font-weight:600" data-bind="hw_gpu">—</span>
+          </div>
+          <div class="row" style="gap:16px;padding:7px 0;align-items:baseline">
+            <span class="caption" style="min-width:160px">Disco C:</span>
+            <span class="mono" style="font-size:11px;color:var(--fg-primary);font-weight:600" data-bind="hw_disk">—</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="status-bar">Hardware detectado com sucesso.</div>
+    </section>
+
+    <!-- ─── MODO GAMER ─── -->
+    <section id="screen-gamer" class="screen">
+      <div>
+        <div class="h1">MODO GAMER</div>
+        <div class="subtitle">17 tweaks reversíveis de CPU, GPU, sistema e rede</div>
+      </div>
+
+      <div id="gamer-hero-card" class="card-hero purple card-hero-center">
+        <div id="gamer-hero-status" style="font-family:var(--font-body);font-size:32px;font-weight:700;color:var(--purple);text-shadow:0 0 14px rgba(112,0,255,0.5)">● INATIVO</div>
+        <div id="gamer-hero-sub" class="body" style="text-align:center">Pronto para ativar — todos os tweaks são reversíveis</div>
+        <div id="gamer-btn-group">
+          <button class="btn-gamer" onclick="window.bridge?.onGamerActivate?.()">ATIVAR MODO GAMER</button>
+        </div>
+        <div class="terminal" id="gamer-terminal" style="display:none;width:100%"></div>
+        <button class="btn-secondary" style="margin-top:4px" onclick="navigate('gamer-advanced')">Configuração avançada →</button>
+      </div>
+
+      <div class="col gap-sm">
+        <div class="label">CPU</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div class="card" style="padding:8px 12px;display:flex;gap:8px;align-items:flex-start">
+            <div class="tweak-dot" data-optin="false" style="width:8px;height:8px;border-radius:4px;background:#333;margin-top:4px;flex-shrink:0"></div>
+            <div><div style="color:#fff;font-size:11px;font-weight:600">Plano Ultimate Performance</div><div class="body" style="font-size:10px;margin-top:1px">Duplica e ativa o power plan oculto do Windows.</div></div>
+          </div>
+          <div class="card" style="padding:8px 12px;display:flex;gap:8px;align-items:flex-start">
+            <div class="tweak-dot" data-optin="false" style="width:8px;height:8px;border-radius:4px;background:#333;margin-top:4px;flex-shrink:0"></div>
+            <div><div style="color:#fff;font-size:11px;font-weight:600">Core Parking OFF</div><div class="body" style="font-size:10px;margin-top:1px">Desabilita estacionamento de núcleos da CPU.</div></div>
+          </div>
+          <div class="card" style="padding:8px 12px;display:flex;gap:8px;align-items:flex-start">
+            <div class="tweak-dot" data-optin="false" style="width:8px;height:8px;border-radius:4px;background:#333;margin-top:4px;flex-shrink:0"></div>
+            <div><div style="color:#fff;font-size:11px;font-weight:600">MMCSS Games Priority</div><div class="body" style="font-size:10px;margin-top:1px">Prioriza o perfil "Games" no agendador multimídia.</div></div>
+          </div>
+        </div>
+
+        <div class="label" style="margin-top:4px">GPU</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div class="card" style="padding:8px 12px;display:flex;gap:8px;align-items:flex-start"><div class="tweak-dot" data-optin="false" style="width:8px;height:8px;border-radius:4px;background:#333;margin-top:4px;flex-shrink:0"></div><div><div style="color:#fff;font-size:11px;font-weight:600">HAGS (GPU Scheduling)</div><div class="body" style="font-size:10px;margin-top:1px">Liga Hardware Accelerated GPU Scheduling.</div></div></div>
+          <div class="card" style="padding:8px 12px;display:flex;gap:8px;align-items:flex-start"><div class="tweak-dot" data-optin="false" style="width:8px;height:8px;border-radius:4px;background:#333;margin-top:4px;flex-shrink:0"></div><div><div style="color:#fff;font-size:11px;font-weight:600">Fullscreen Opts. OFF</div><div class="body" style="font-size:10px;margin-top:1px">Desliga otimizações de tela cheia.</div></div></div>
+          <div class="card" style="padding:8px 12px;display:flex;gap:8px;align-items:flex-start"><div class="tweak-dot" data-optin="false" style="width:8px;height:8px;border-radius:4px;background:#333;margin-top:4px;flex-shrink:0"></div><div><div style="color:#fff;font-size:11px;font-weight:600">Game DVR OFF</div><div class="body" style="font-size:10px;margin-top:1px">Desliga gravação em background.</div></div></div>
+          <div class="card" style="padding:8px 12px;display:flex;gap:8px;align-items:flex-start"><div class="tweak-dot" data-optin="false" style="width:8px;height:8px;border-radius:4px;background:#333;margin-top:4px;flex-shrink:0"></div><div><div style="color:#fff;font-size:11px;font-weight:600">Game Mode ON</div><div class="body" style="font-size:10px;margin-top:1px">Liga o Game Mode do Windows.</div></div></div>
+          <div class="card" style="padding:8px 12px;display:flex;gap:8px;align-items:flex-start"><div class="tweak-dot" data-optin="false" style="width:8px;height:8px;border-radius:4px;background:#333;margin-top:4px;flex-shrink:0"></div><div><div style="color:#fff;font-size:11px;font-weight:600">TDR Delay x10</div><div class="body" style="font-size:10px;margin-top:1px">Estende o timeout de resposta da GPU.</div></div></div>
+        </div>
+
+        <div class="label" style="margin-top:4px">REDE</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div class="card" style="padding:8px 12px;display:flex;gap:8px;align-items:flex-start"><div class="tweak-dot" data-optin="false" style="width:8px;height:8px;border-radius:4px;background:#333;margin-top:4px;flex-shrink:0"></div><div><div style="color:#fff;font-size:11px;font-weight:600">Nagle OFF</div><div class="body" style="font-size:10px;margin-top:1px">Desliga o algoritmo Nagle (menor latência).</div></div></div>
+          <div class="card" style="padding:8px 12px;display:flex;gap:8px;align-items:flex-start"><div class="tweak-dot" data-optin="false" style="width:8px;height:8px;border-radius:4px;background:#333;margin-top:4px;flex-shrink:0"></div><div><div style="color:#fff;font-size:11px;font-weight:600">Throttling OFF</div><div class="body" style="font-size:10px;margin-top:1px">Desativa limitação de rede em multimídia.</div></div></div>
+          <div class="card" style="padding:8px 12px;display:flex;gap:8px;align-items:flex-start"><div class="tweak-dot" data-optin="false" style="width:8px;height:8px;border-radius:4px;background:#333;margin-top:4px;flex-shrink:0"></div><div><div style="color:#fff;font-size:11px;font-weight:600">TCP Autotuning Normal</div><div class="body" style="font-size:10px;margin-top:1px">Define AutoTuningLevelLocal=Normal.</div></div></div>
+          <div class="card" style="padding:8px 12px;display:flex;gap:8px;align-items:flex-start"><div class="tweak-dot" data-optin="false" style="width:8px;height:8px;border-radius:4px;background:#333;margin-top:4px;flex-shrink:0"></div><div><div style="color:#fff;font-size:11px;font-weight:600">Flush DNS</div><div class="body" style="font-size:10px;margin-top:1px">Limpa cache DNS ao ativar.</div></div></div>
+        </div>
+
+        <div class="label warn" style="margin-top:4px">SISTEMA</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div class="card" style="padding:8px 12px;display:flex;gap:8px;align-items:flex-start"><div class="tweak-dot" data-optin="false" style="width:8px;height:8px;border-radius:4px;background:#333;margin-top:4px;flex-shrink:0"></div><div><div style="color:#fff;font-size:11px;font-weight:600">Kill Bloat</div><div class="body" style="font-size:10px;margin-top:1px">Encerra processos em background (sem Discord/Steam).</div></div></div>
+          <div class="card" style="padding:8px 12px;display:flex;gap:8px;align-items:flex-start"><div class="tweak-dot" data-optin="false" style="width:8px;height:8px;border-radius:4px;background:#333;margin-top:4px;flex-shrink:0"></div><div><div style="color:#fff;font-size:11px;font-weight:600">Visual Effects → Perf</div><div class="body" style="font-size:10px;margin-top:1px">Ajusta efeitos visuais para melhor desempenho.</div></div></div>
+          <div class="card" style="padding:8px 12px;display:flex;gap:8px;align-items:flex-start"><div class="tweak-dot" data-optin="false" style="width:8px;height:8px;border-radius:4px;background:#333;margin-top:4px;flex-shrink:0"></div><div><div style="color:#fff;font-size:11px;font-weight:600">Notificações OFF</div><div class="body" style="font-size:10px;margin-top:1px">Desativa toasts para não tirar do fullscreen.</div></div></div>
+          <div class="card" style="padding:8px 12px;display:flex;gap:8px;align-items:flex-start"><div class="tweak-dot" data-optin="false" style="width:8px;height:8px;border-radius:4px;background:#333;margin-top:4px;flex-shrink:0"></div><div><div style="color:#fff;font-size:11px;font-weight:600">Serviços → Demanda</div><div class="body" style="font-size:10px;margin-top:1px">SysMain, DiagTrack, WSearch em modo demand.</div></div></div>
+          <div class="card" style="padding:8px 12px;display:flex;gap:8px;align-items:flex-start;border-color:var(--border-warn-30)">
+            <div class="tweak-dot" data-optin="true" style="width:8px;height:8px;border-radius:4px;background:#333;margin-top:4px;flex-shrink:0"></div>
+            <div>
+              <div style="color:#fff;font-size:11px;font-weight:600">Purgar Standby Memory</div>
+              <div class="body" style="font-size:10px;margin-top:1px">Purga memória em standby via ntdll.</div>
+              <div class="warn-inline" style="font-size:9px">⚠ Opt-in — risco de BSOD em alguns sistemas.</div>
+              <label style="display:flex;align-items:center;gap:4px;margin-top:4px;cursor:pointer">
+                <input type="checkbox" data-id="empty_standby">
+                <span style="color:var(--state-warn);font-size:9px">Habilitar (opt-in)</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="status-bar muted" data-bind="gamer_status">Modo Gamer inativo.</div>
+    </section>
+
+    <!-- ─── MODO GAMER AVANÇADO ─── -->
+    <section id="screen-gamer-advanced" class="screen">
+      <div class="between">
+        <div>
+          <div class="h1">MODO GAMER · AVANÇADO</div>
+          <div class="subtitle">Habilite ou desabilite cada tweak individualmente</div>
+        </div>
+        <button class="btn-secondary" onclick="navigate('gamer')">← Voltar</button>
+      </div>
+
+      <div class="card col gap-md">
+        <div class="label">CPU</div>
+        <div class="between"><span style="color:#fff;font-size:12px">Plano Ultimate Performance</span><label class="toggle"><input type="checkbox" data-id="cpu.ultimate_performance" checked><span class="track"></span><span class="knob"></span></label></div>
+        <div class="between"><span style="color:#fff;font-size:12px">Core Parking OFF</span><label class="toggle"><input type="checkbox" data-id="cpu.core_parking_off" checked><span class="track"></span><span class="knob"></span></label></div>
+        <div class="between"><span style="color:#fff;font-size:12px">MMCSS Games Priority</span><label class="toggle"><input type="checkbox" data-id="cpu.mmcss_games" checked><span class="track"></span><span class="knob"></span></label></div>
+      </div>
+
+      <div class="card col gap-md">
+        <div class="label">GPU</div>
+        <div class="between"><span style="color:#fff;font-size:12px">HAGS (GPU Scheduling)</span><label class="toggle"><input type="checkbox" data-id="gpu.hags" checked><span class="track"></span><span class="knob"></span></label></div>
+        <div class="between"><span style="color:#fff;font-size:12px">Fullscreen Optimizations OFF</span><label class="toggle"><input type="checkbox" data-id="gpu.fso_off" checked><span class="track"></span><span class="knob"></span></label></div>
+        <div class="between"><span style="color:#fff;font-size:12px">Game DVR OFF</span><label class="toggle"><input type="checkbox" data-id="gpu.gamedvr_off" checked><span class="track"></span><span class="knob"></span></label></div>
+        <div class="between"><span style="color:#fff;font-size:12px">Game Mode ON</span><label class="toggle"><input type="checkbox" data-id="gpu.game_mode_on" checked><span class="track"></span><span class="knob"></span></label></div>
+        <div class="between"><span style="color:#fff;font-size:12px">TDR Delay x10</span><label class="toggle"><input type="checkbox" data-id="gpu.tdr_delay"><span class="track"></span><span class="knob"></span></label></div>
+      </div>
+
+      <div class="card col gap-md">
+        <div class="label">REDE</div>
+        <div class="between"><span style="color:#fff;font-size:12px">Nagle OFF</span><label class="toggle"><input type="checkbox" data-id="network.nagle_off" checked><span class="track"></span><span class="knob"></span></label></div>
+        <div class="between"><span style="color:#fff;font-size:12px">Throttling OFF</span><label class="toggle"><input type="checkbox" data-id="network.throttling_off" checked><span class="track"></span><span class="knob"></span></label></div>
+        <div class="between"><span style="color:#fff;font-size:12px">TCP Autotuning Normal</span><label class="toggle"><input type="checkbox" data-id="network.tcp_autotuning" checked><span class="track"></span><span class="knob"></span></label></div>
+        <div class="between"><span style="color:#fff;font-size:12px">Flush DNS</span><label class="toggle"><input type="checkbox" data-id="network.flush_dns" checked><span class="track"></span><span class="knob"></span></label></div>
+      </div>
+
+      <div class="card col gap-md">
+        <div class="label warn">SISTEMA</div>
+        <div class="between"><span style="color:#fff;font-size:12px">Kill Bloat</span><label class="toggle"><input type="checkbox" data-id="system.kill_bloat" checked><span class="track"></span><span class="knob"></span></label></div>
+        <div class="between"><span style="color:#fff;font-size:12px">Visual Effects → Performance</span><label class="toggle"><input type="checkbox" data-id="system.visual_effects" checked><span class="track"></span><span class="knob"></span></label></div>
+        <div class="between"><span style="color:#fff;font-size:12px">Notificações OFF</span><label class="toggle"><input type="checkbox" data-id="system.toasts_off" checked><span class="track"></span><span class="knob"></span></label></div>
+        <div class="between"><span style="color:#fff;font-size:12px">Serviços → Demanda</span><label class="toggle"><input type="checkbox" data-id="system.services_demand" checked><span class="track"></span><span class="knob"></span></label></div>
+        <div class="between" style="padding-top:8px;border-top:1px solid var(--border-subtle)">
+          <div>
+            <div style="color:#fff;font-size:12px">Purgar Standby Memory</div>
+            <div class="warn-inline" style="font-size:9px">⚠ Opt-in — risco de BSOD em alguns sistemas.</div>
+          </div>
+          <label class="toggle"><input type="checkbox" data-id="system.empty_standby"><span class="track"></span><span class="knob"></span></label>
+        </div>
+      </div>
+
+      <div class="status-bar muted">Salvando alterações automaticamente.</div>
+    </section>
+
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

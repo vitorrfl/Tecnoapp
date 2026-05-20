@@ -48,7 +48,7 @@ class WebScreen(QWebEngineView):
         self._page.setWebChannel(self.channel)
 
         # Carrega o front
-        web_dir = Path(__file__).resolve().parent / "web"
+        web_dir = Path(__file__).resolve().parent / "webview"
         index = web_dir / "index.html"
         if not index.exists():
             raise FileNotFoundError(f"web/index.html não encontrado em {index}")

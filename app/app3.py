@@ -15,7 +15,8 @@ import shiboken6
 from gamer import build_engine, load_enabled_optins, save_enabled_optins
 from gamer.tweaks import Category
 from ui import (
-    Card, HeroCard, MetricLabel, Chip, ResponsiveCardRow, Palette,
+    Card, HeroCard, MetricLabel, Chip, ResponsiveCardRow,
+    Palette, Spacing, GLOBAL_STYLESHEET,
     SidebarButton, SidebarRestoreButton, SidebarExitButton, GamerSidebarButton,
 )
 from ui.icons import lucide_pixmap
@@ -797,14 +798,14 @@ class ToggleSwitch(QCheckBox):
         w, h = self.width() - 1, self.height() - 1
 
         if self.isChecked():
-            bg_color    = QColor("#0eb3ff")
-            border_col  = QColor("#0eb3ff")
-            knob_color  = QColor("white")
+            bg_color    = QColor(Palette.CYAN)
+            border_col  = QColor(Palette.CYAN)
+            knob_color  = QColor(Palette.FG_PRIMARY)
             knob_x      = w - 18
         else:
-            bg_color    = QColor("#1a1f2b")
-            border_col  = QColor("#333333")
-            knob_color  = QColor("#888888")
+            bg_color    = QColor("#1a1f2b")          # pill off-bg (spec: #1a1f2b)
+            border_col  = QColor(Palette.STATE_OFF_BRD)
+            knob_color  = QColor(Palette.STATE_OFF)
             knob_x      = 3
 
         p.setPen(QPen(border_col, 1))
@@ -833,11 +834,11 @@ class TecnoApp(QMainWindow):
         self.resize(1100, 720)
         self.setMinimumSize(900, 620)
 
-        # Cores da Identidade Visual
-        self.primary = "#0eb3ff"    
-        self.secondary = "#7000ff"  
-        self.danger = "#ff4b4b"
-        self.bg_dark = "#030407"    
+        # Aliases de token — usados nos f-strings do stylesheet abaixo
+        self.primary   = Palette.CYAN
+        self.secondary = Palette.PURPLE
+        self.danger    = Palette.STATE_DANGER
+        self.bg_dark   = Palette.BG_BASE
         self.log_file = os.path.join(os.environ.get('TEMP'), 'tecnosup_clean_log.txt')
         
         self._pending_status: dict = {}
@@ -854,97 +855,42 @@ class TecnoApp(QMainWindow):
         self._gamer_worker = None
 
         self.setStyleSheet(f"""
-            QMainWindow {{ background-color: {self.bg_dark}; }}
+            QMainWindow {{ background-color: {Palette.BG_BASE}; }}
             #Sidebar {{
                 background-color: rgba(3, 4, 7, 247);
                 border-right: 1px solid rgba(14, 179, 255, 0.10);
             }}
-            QLabel {{ color: #ffffff; background: transparent; }}
-
-            QPushButton#MenuBtn {{
-                background: transparent;
-                border: 1px solid rgba(26, 34, 48, 0.6);
-                color: #ccd2e0;
-                font-family: 'Segoe UI'; font-size: 11px;
-                font-weight: bold; letter-spacing: 1px;
-                border-radius: 8px;
-                padding: 9px 12px; text-align: left;
-            }}
-            QPushButton#MenuBtn:hover {{
-                background: rgba(14, 179, 255, 0.08);
-                border: 1px solid rgba(14, 179, 255, 0.55);
-                color: {self.primary};
-            }}
-            QPushButton#MenuBtn:pressed {{
-                background: rgba(14, 179, 255, 0.16);
-            }}
-            QPushButton#MenuBtn[active="true"] {{
-                background: rgba(14, 179, 255, 0.12);
-                border: 1px solid {self.primary};
-                color: {self.primary};
-            }}
+            QLabel {{ color: {Palette.FG_PRIMARY}; background: transparent; }}
 
             QPushButton#ActionBtn {{
-                background-color: {self.primary}; color: #030407;
+                background-color: {Palette.CYAN}; color: {Palette.BG_BASE};
                 font-weight: bold; font-family: 'Segoe UI'; font-size: 14px;
-                border-radius: 8px; padding: 12px; border: none;
+                border-radius: {Spacing.RADIUS_BTN}px; padding: 12px; border: none;
             }}
-            QPushButton#ActionBtn:hover {{ background-color: #ffffff; }}
+            QPushButton#ActionBtn:hover {{ background-color: {Palette.FG_PRIMARY}; }}
             QPushButton#ActionBtn:pressed {{ background-color: #2dc3ff; }}
 
             QPushButton#InfoBtn {{
                 background: rgba(14, 179, 255, 0.10);
-                border: 1px solid {self.primary};
-                color: {self.primary};
+                border: 1px solid {Palette.CYAN};
+                color: {Palette.CYAN};
                 font-size: 14px; border-radius: 15px; font-weight: bold;
             }}
-            QPushButton#InfoBtn:hover {{ background: {self.primary}; color: #030407; }}
-
-            QPushButton#GamerNav {{
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 {self.primary}, stop:1 {self.secondary});
-                color: white; font-weight: bold;
-                font-family: 'Segoe UI'; font-size: 11px; letter-spacing: 1px;
-                border-radius: 8px; padding: 9px 12px; border: 1px solid transparent;
-                text-align: left;
-            }}
-            QPushButton#GamerNav:hover {{
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #2dc3ff, stop:1 #8a2bff);
-            }}
-            QPushButton#GamerNav[active="true"] {{
-                border: 1px solid #ffffff;
-            }}
+            QPushButton#InfoBtn:hover {{ background: {Palette.CYAN}; color: {Palette.BG_BASE}; }}
 
             QPushButton#ExitBtn {{
                 background: transparent;
                 border: 1px solid rgba(255, 75, 75, 0.55);
-                color: #ff4b4b;
-                border-radius: 8px;
+                color: {Palette.STATE_DANGER};
+                border-radius: {Spacing.RADIUS_BTN}px;
                 font-family: 'Segoe UI'; font-weight: bold; letter-spacing: 1px;
             }}
             QPushButton#ExitBtn:hover {{
-                background: #ff4b4b; color: white;
-                border: 1px solid #ff4b4b;
+                background: {Palette.STATE_DANGER}; color: {Palette.FG_PRIMARY};
+                border: 1px solid {Palette.STATE_DANGER};
             }}
 
             QScrollArea {{ background: transparent; border: none; }}
-            QScrollBar:vertical {{
-                background: transparent; width: 8px; margin: 2px;
-            }}
-            QScrollBar::handle:vertical {{
-                background: rgba(14, 179, 255, 0.25);
-                border-radius: 4px; min-height: 30px;
-            }}
-            QScrollBar::handle:vertical:hover {{
-                background: rgba(14, 179, 255, 0.55);
-            }}
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
-                background: none; height: 0px;
-            }}
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
-                background: none;
-            }}
         """)
 
         central_widget = QWidget()
@@ -999,7 +945,7 @@ class TecnoApp(QMainWindow):
 
         side_lyt.addSpacing(4)
         ver = QLabel("v 1.0 · Tecnosup")
-        ver.setStyleSheet("color: #2a3040; font-family: 'Consolas'; font-size: 9px; background: transparent;")
+        ver.setStyleSheet(f"color: {Palette.FG_SUBTLE}; font-family: 'Consolas'; font-size: 9px; background: transparent;")
         ver.setAlignment(Qt.AlignCenter)
         side_lyt.addWidget(ver)
 
@@ -1011,7 +957,7 @@ class TecnoApp(QMainWindow):
         self.content_lyt.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(self.content_container)
 
-        web_mode = ("--web" in sys.argv) or (os.environ.get("TECNOAPP_WEB") == "1")
+        web_mode = True  # UI migrada para WebEngine
         print(f"[TecnoApp] startup mode = {'WEB (Qt WebEngine)' if web_mode else 'CLASSIC (QWidgets)'}", flush=True)
         if web_mode:
             self.show_web()
@@ -1338,18 +1284,14 @@ class TecnoApp(QMainWindow):
         self.clear_screen()
         self.add_title("CONFIGURAR LIMPEZA")
         sub = QLabel("Selecione o que deseja limpar. Os marcados por padrão são seguros para todos.")
-        sub.setStyleSheet("color: #555; font-size: 11px; margin-bottom: 8px;")
+        sub.setStyleSheet(f"color: {Palette.FG_MUTED}; font-size: 11px; margin-bottom: 8px;")
         sub.setWordWrap(True)
         sub.setAlignment(Qt.AlignCenter)
         self.content_lyt.addWidget(sub)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet(
-            "QScrollArea { border: none; background: transparent; }"
-            "QScrollBar:vertical { width: 6px; background: #111; border-radius: 3px; }"
-            "QScrollBar::handle:vertical { background: #0eb3ff; border-radius: 3px; }"
-        )
+        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
         inner = QWidget()
         inner.setStyleSheet("background: transparent;")
         inner_lyt = QVBoxLayout(inner)
@@ -1366,7 +1308,7 @@ class TecnoApp(QMainWindow):
         opt_cats = [c for c in _CLEAN_CATEGORIES if not c["default"]]
 
         safe_hdr = QLabel("── SEGURO (sempre recomendado)")
-        safe_hdr.setStyleSheet(f"color: {self.primary}; font-weight: bold; font-size: 11px; margin-top: 4px;")
+        safe_hdr.setStyleSheet(f"color: {Palette.CYAN}; font-weight: bold; font-size: 11px; margin-top: 4px;")
         inner_lyt.addWidget(safe_hdr)
 
         for cat in safe_cats:
@@ -1374,7 +1316,7 @@ class TecnoApp(QMainWindow):
             inner_lyt.addWidget(self._build_clean_row(cat, checked=checked))
 
         opt_hdr = QLabel("── OPCIONAL (revise antes de ativar)")
-        opt_hdr.setStyleSheet("color: #ffbd2e; font-weight: bold; font-size: 11px; margin-top: 10px;")
+        opt_hdr.setStyleSheet(f"color: {Palette.STATE_WARN}; font-weight: bold; font-size: 11px; margin-top: 10px;")
         inner_lyt.addWidget(opt_hdr)
 
         for cat in opt_cats:
@@ -1391,7 +1333,7 @@ class TecnoApp(QMainWindow):
         back = QPushButton("Voltar")
         back.setFixedWidth(100)
         back.setStyleSheet(
-            "background: transparent; border: 1px solid #333; color: #666;"
+            f"background: transparent; border: 1px solid {Palette.STATE_OFF_BRD}; color: {Palette.FG_MUTED};"
             "font-weight: bold; border-radius: 6px; padding: 8px;"
         )
         back.clicked.connect(self.show_limpeza)
@@ -1399,7 +1341,7 @@ class TecnoApp(QMainWindow):
         save = QPushButton("Salvar alterações")
         save.setFixedWidth(200)
         save.setStyleSheet(
-            f"background: {self.primary}; color: #030407; border: none;"
+            f"background: {Palette.CYAN}; color: {Palette.BG_BASE}; border: none;"
             "border-radius: 6px; padding: 8px; font-family: 'Segoe UI'; font-weight: bold;"
         )
         save.clicked.connect(self._save_clean_and_return)
@@ -1415,7 +1357,7 @@ class TecnoApp(QMainWindow):
     def _build_clean_row(self, cat, checked):
         row = QFrame()
         row.setStyleSheet(
-            "QFrame { background: #0a0d14; border: 1px solid #1a1f2b; border-radius: 6px; }"
+            f"QFrame {{ background: {Palette.BG_CARD}; border: 1px solid {Palette.BORDER_SUBTLE}; border-radius: {Spacing.RADIUS_ROW}px; }}"
         )
         lyt = QVBoxLayout(row)
         lyt.setContentsMargins(10, 8, 10, 8)
@@ -1427,7 +1369,7 @@ class TecnoApp(QMainWindow):
         cb = QCheckBox(cat["label"])
         cb.setChecked(checked)
         cb.setStyleSheet(
-            "QCheckBox { color: white; font-family: 'Segoe UI'; font-size: 12px; }"
+            f"QCheckBox {{ color: {Palette.FG_PRIMARY}; font-family: 'Segoe UI'; font-size: 12px; }}"
             "QCheckBox::indicator { width: 14px; height: 14px; }"
         )
         self._clean_checkboxes[cat["id"]] = cb
@@ -1435,19 +1377,19 @@ class TecnoApp(QMainWindow):
         top.addWidget(cb, 1)
 
         impact = QLabel(cat["impact"])
-        impact.setStyleSheet("color: #0eb3ff; font-family: 'Consolas'; font-size: 10px;")
+        impact.setStyleSheet(f"color: {Palette.CYAN}; font-family: 'Consolas'; font-size: 10px;")
         top.addWidget(impact)
         lyt.addLayout(top)
 
         desc = QLabel(cat["desc"])
         desc.setWordWrap(True)
-        desc.setStyleSheet("color: #888; font-family: 'Segoe UI'; font-size: 10px; padding-left: 22px;")
+        desc.setStyleSheet(f"color: {Palette.FG_MUTED}; font-family: 'Segoe UI'; font-size: 10px; padding-left: 22px;")
         lyt.addWidget(desc)
 
         if cat.get("warning"):
             warn = QLabel("⚠ " + cat["warning"])
             warn.setWordWrap(True)
-            warn.setStyleSheet("color: #ff8a4b; font-family: 'Segoe UI'; font-size: 10px; padding-left: 22px;")
+            warn.setStyleSheet(f"color: {Palette.STATE_WARN}; font-family: 'Segoe UI'; font-size: 10px; padding-left: 22px;")
             lyt.addWidget(warn)
 
         return row
@@ -1476,9 +1418,8 @@ class TecnoApp(QMainWindow):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setStyleSheet(
-            "QScrollArea { border: 1px solid #1a1f2b; background: #0a0d14; border-radius: 8px; }"
-            "QScrollBar:vertical { width: 6px; background: #111; border-radius: 3px; }"
-            "QScrollBar::handle:vertical { background: #0eb3ff; border-radius: 3px; }"
+            f"QScrollArea {{ border: 1px solid {Palette.BORDER_SUBTLE}; "
+            f"background: {Palette.BG_CARD}; border-radius: 8px; }}"
         )
         log_inner = QWidget()
         log_inner.setStyleSheet("background: transparent;")
@@ -1507,7 +1448,7 @@ class TecnoApp(QMainWindow):
         self._clean_btn_voltar.setFixedWidth(200)
         self._clean_btn_voltar.setEnabled(False)
         self._clean_btn_voltar.setStyleSheet(
-            "background: transparent; border: 1px solid #333; color: #444;"
+            f"background: transparent; border: 1px solid {Palette.STATE_OFF_BRD}; color: {Palette.FG_SUBTLE};"
             "font-weight: bold; border-radius: 8px; padding: 10px;"
         )
         self._clean_btn_voltar.clicked.connect(self.show_limpeza)
@@ -2009,9 +1950,9 @@ class TecnoApp(QMainWindow):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setStyleSheet(
-            "QScrollArea { border: none; background: transparent; }"
-            "QScrollBar:vertical { width: 6px; background: #111; border-radius: 3px; }"
-            "QScrollBar::handle:vertical { background: #0eb3ff; border-radius: 3px; }"
+            f"QScrollArea {{ border: none; background: transparent; }}"
+            f"QScrollBar:vertical {{ width: 6px; background: {Palette.BG_BASE}; border-radius: 3px; }}"
+            f"QScrollBar::handle:vertical {{ background: {Palette.CYAN}; border-radius: 3px; }}"
         )
         inner = QWidget()
         inner.setStyleSheet("background: transparent;")
@@ -2398,18 +2339,14 @@ class TecnoApp(QMainWindow):
         self.clear_screen()
         self.add_title("CONFIGURAR OTIMIZAÇÃO")
         sub = QLabel("Selecione os ajustes desejados. Os marcados por padrão são seguros para todos.")
-        sub.setStyleSheet("color: #555; font-size: 11px; margin-bottom: 8px;")
+        sub.setStyleSheet(f"color: {Palette.FG_MUTED}; font-size: 11px; margin-bottom: 8px;")
         sub.setWordWrap(True)
         sub.setAlignment(Qt.AlignCenter)
         self.content_lyt.addWidget(sub)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet(
-            "QScrollArea { border: none; background: transparent; }"
-            "QScrollBar:vertical { width: 6px; background: #111; border-radius: 3px; }"
-            "QScrollBar::handle:vertical { background: #0eb3ff; border-radius: 3px; }"
-        )
+        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
         inner = QWidget()
         inner.setStyleSheet("background: transparent;")
         inner_lyt = QVBoxLayout(inner)
@@ -2426,7 +2363,7 @@ class TecnoApp(QMainWindow):
         opt_cats  = [c for c in _OPTIMIZE_CATEGORIES if not c["default"]]
 
         safe_hdr = QLabel("── RECOMENDADO (seguro)")
-        safe_hdr.setStyleSheet(f"color: {self.primary}; font-weight: bold; font-size: 11px; margin-top: 4px;")
+        safe_hdr.setStyleSheet(f"color: {Palette.CYAN}; font-weight: bold; font-size: 11px; margin-top: 4px;")
         inner_lyt.addWidget(safe_hdr)
         for cat in safe_cats:
             checked = saved.get(cat["id"], cat["default"])
@@ -2434,7 +2371,7 @@ class TecnoApp(QMainWindow):
             inner_lyt.addWidget(self._build_optimize_row(cat, checked=checked, use_toggle=use_toggle))
 
         opt_hdr = QLabel("── OPCIONAL (revise antes de ativar)")
-        opt_hdr.setStyleSheet("color: #ffbd2e; font-weight: bold; font-size: 11px; margin-top: 10px;")
+        opt_hdr.setStyleSheet(f"color: {Palette.STATE_WARN}; font-weight: bold; font-size: 11px; margin-top: 10px;")
         inner_lyt.addWidget(opt_hdr)
         for cat in opt_cats:
             checked = saved.get(cat["id"], cat["default"])
@@ -2449,7 +2386,7 @@ class TecnoApp(QMainWindow):
         self._optimize_counter_label = QLabel("")
         self._optimize_counter_label.setAlignment(Qt.AlignCenter)
         self._optimize_counter_label.setStyleSheet(
-            "color: #888; font-family: 'Consolas'; font-size: 11px; margin-top: 6px;"
+            f"color: {Palette.FG_MUTED}; font-family: 'Consolas'; font-size: 11px; margin-top: 6px;"
         )
         self.content_lyt.addWidget(self._optimize_counter_label)
         self._update_optimize_counter()
@@ -2459,14 +2396,14 @@ class TecnoApp(QMainWindow):
         back = QPushButton("Voltar")
         back.setFixedWidth(100)
         back.setStyleSheet(
-            "background: transparent; border: 1px solid #333; color: #666;"
+            f"background: transparent; border: 1px solid {Palette.STATE_OFF_BRD}; color: {Palette.FG_MUTED};"
             "font-weight: bold; border-radius: 6px; padding: 8px;"
         )
         back.clicked.connect(self.show_otimizacao)
         save = QPushButton("Salvar alterações")
         save.setFixedWidth(200)
         save.setStyleSheet(
-            f"background: {self.primary}; color: #030407; border: none;"
+            f"background: {Palette.CYAN}; color: {Palette.BG_BASE}; border: none;"
             "border-radius: 6px; padding: 8px; font-family: 'Segoe UI'; font-weight: bold;"
         )
         save.clicked.connect(self._save_optimize_and_return)
@@ -2481,7 +2418,7 @@ class TecnoApp(QMainWindow):
     def _build_optimize_row(self, cat, checked, use_toggle=False):
         row = QFrame()
         row.setStyleSheet(
-            "QFrame { background: #0a0d14; border: 1px solid #1a1f2b; border-radius: 6px; }"
+            f"QFrame {{ background: {Palette.BG_CARD}; border: 1px solid {Palette.BORDER_SUBTLE}; border-radius: {Spacing.RADIUS_ROW}px; }}"
         )
         lyt = QVBoxLayout(row)
         lyt.setContentsMargins(10, 8, 10, 8)
@@ -2491,26 +2428,25 @@ class TecnoApp(QMainWindow):
         top.setContentsMargins(0, 0, 0, 0)
 
         if use_toggle:
-            # Toggle à esquerda + label ao lado (alinhado com padrão dos checkboxes)
             cb = ToggleSwitch()
             cb.setChecked(checked)
             top.addWidget(cb)
             top.addSpacing(8)
 
             lbl = QLabel(cat["label"])
-            lbl.setStyleSheet("color: white; font-family: 'Segoe UI'; font-size: 12px;")
+            lbl.setStyleSheet(f"color: {Palette.FG_PRIMARY}; font-family: 'Segoe UI'; font-size: 12px;")
             top.addWidget(lbl, 1)
         else:
             cb = QCheckBox(cat["label"])
             cb.setChecked(checked)
             cb.setStyleSheet(
-                "QCheckBox { color: white; font-family: 'Segoe UI'; font-size: 12px; }"
+                f"QCheckBox {{ color: {Palette.FG_PRIMARY}; font-family: 'Segoe UI'; font-size: 12px; }}"
                 "QCheckBox::indicator { width: 14px; height: 14px; }"
             )
             top.addWidget(cb, 1)
 
         impact = QLabel(cat["impact"])
-        impact.setStyleSheet("color: #0eb3ff; font-family: 'Consolas'; font-size: 10px;")
+        impact.setStyleSheet(f"color: {Palette.CYAN}; font-family: 'Consolas'; font-size: 10px;")
         top.addWidget(impact)
 
         self._optimize_checkboxes[cat["id"]] = cb
@@ -2519,13 +2455,13 @@ class TecnoApp(QMainWindow):
 
         desc = QLabel(cat["desc"])
         desc.setWordWrap(True)
-        desc.setStyleSheet("color: #888; font-family: 'Segoe UI'; font-size: 10px; padding-left: 22px;")
+        desc.setStyleSheet(f"color: {Palette.FG_MUTED}; font-family: 'Segoe UI'; font-size: 10px; padding-left: 22px;")
         lyt.addWidget(desc)
 
         if cat.get("warning"):
             warn = QLabel("⚠ " + cat["warning"])
             warn.setWordWrap(True)
-            warn.setStyleSheet("color: #ff8a4b; font-family: 'Segoe UI'; font-size: 10px; padding-left: 22px;")
+            warn.setStyleSheet(f"color: {Palette.STATE_WARN}; font-family: 'Segoe UI'; font-size: 10px; padding-left: 22px;")
             lyt.addWidget(warn)
 
         return row
@@ -2605,9 +2541,8 @@ class TecnoApp(QMainWindow):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setStyleSheet(
-            "QScrollArea { border: 1px solid #1a1f2b; background: #0a0d14; border-radius: 8px; }"
-            "QScrollBar:vertical { width: 6px; background: #111; border-radius: 3px; }"
-            "QScrollBar::handle:vertical { background: #0eb3ff; border-radius: 3px; }"
+            f"QScrollArea {{ border: 1px solid {Palette.BORDER_SUBTLE}; "
+            f"background: {Palette.BG_CARD}; border-radius: 8px; }}"
         )
         log_inner = QWidget()
         log_inner.setStyleSheet("background: transparent;")
@@ -2636,7 +2571,7 @@ class TecnoApp(QMainWindow):
         self._optimize_btn_voltar.setFixedWidth(200)
         self._optimize_btn_voltar.setEnabled(False)
         self._optimize_btn_voltar.setStyleSheet(
-            "background: transparent; border: 1px solid #333; color: #444;"
+            f"background: transparent; border: 1px solid {Palette.STATE_OFF_BRD}; color: {Palette.FG_SUBTLE};"
             "font-weight: bold; border-radius: 8px; padding: 10px;"
         )
         self._optimize_btn_voltar.clicked.connect(self.show_otimizacao)
@@ -2718,11 +2653,7 @@ class TecnoApp(QMainWindow):
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet(
-            "QScrollArea { border: none; background: transparent; }"
-            "QScrollBar:vertical { width: 6px; background: #111; border-radius: 3px; }"
-            "QScrollBar::handle:vertical { background: #0eb3ff; border-radius: 3px; }"
-        )
+        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
         inner = QWidget()
         inner.setStyleSheet("background: transparent;")
         inner_lyt = QVBoxLayout(inner)
@@ -2806,7 +2737,7 @@ class TecnoApp(QMainWindow):
             warn = QLabel("⚠ " + tool["warning"])
             warn.setWordWrap(True)
             warn.setStyleSheet(
-                f"color: #ff8a4b; font-family: 'Segoe UI'; "
+                f"color: {Palette.STATE_WARN}; font-family: 'Segoe UI'; "
                 f"font-size: 10px; background: transparent;"
             )
             card.add(warn)
@@ -2875,9 +2806,9 @@ class TecnoApp(QMainWindow):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setStyleSheet(
-            "QScrollArea { border: 1px solid #1a1f2b; background: #0a0d14; border-radius: 8px; }"
-            "QScrollBar:vertical { width: 6px; background: #111; border-radius: 3px; }"
-            "QScrollBar::handle:vertical { background: #0eb3ff; border-radius: 3px; }"
+            f"QScrollArea {{ border: 1px solid {Palette.BORDER_SUBTLE}; background: {Palette.BG_CARD}; border-radius: 8px; }}"
+            f"QScrollBar:vertical {{ width: 6px; background: {Palette.BG_BASE}; border-radius: 3px; }}"
+            f"QScrollBar::handle:vertical {{ background: {Palette.CYAN}; border-radius: 3px; }}"
         )
         log_inner = QWidget()
         log_inner.setStyleSheet("background: transparent;")
@@ -2907,7 +2838,7 @@ class TecnoApp(QMainWindow):
         self._repair_btn_voltar.setFixedWidth(200)
         self._repair_btn_voltar.setEnabled(False)
         self._repair_btn_voltar.setStyleSheet(
-            "background: transparent; border: 1px solid #333; color: #444;"
+            f"background: transparent; border: 1px solid {Palette.BORDER_SUBTLE}; color: {Palette.FG_MUTED};"
             "font-weight: bold; border-radius: 8px; padding: 10px;"
         )
         self._repair_btn_voltar.clicked.connect(self.show_reparos)
@@ -2932,7 +2863,7 @@ class TecnoApp(QMainWindow):
             self._repair_worker = None
 
         _save_module_status("repair", summary)
-        color = self.primary if overall_ok else "#ff8a4b"
+        color = self.primary if overall_ok else Palette.STATE_WARN
 
         summary_label = getattr(self, "_repair_summary_label", None)
         btn_voltar    = getattr(self, "_repair_btn_voltar",    None)
@@ -3101,13 +3032,17 @@ class TecnoApp(QMainWindow):
         )
         intro.setAlignment(Qt.AlignCenter)
         intro.setWordWrap(True)
-        intro.setStyleSheet("color:#aaa; font-family:'Segoe UI'; font-size:12px;")
+        intro.setStyleSheet(f"color:{Palette.FG_MUTED}; font-family:'Segoe UI'; font-size:12px;")
         self.content_lyt.addWidget(intro)
         self.content_lyt.addSpacing(10)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("QScrollArea{border:none; background:transparent;}")
+        scroll.setStyleSheet(
+            f"QScrollArea {{ border: none; background: transparent; }}"
+            f"QScrollBar:vertical {{ width: 6px; background: {Palette.BG_BASE}; border-radius: 3px; }}"
+            f"QScrollBar::handle:vertical {{ background: {Palette.CYAN}; border-radius: 3px; }}"
+        )
         inner = QWidget()
         inner_lyt = QVBoxLayout(inner)
         inner_lyt.setContentsMargins(10, 0, 10, 0)
@@ -3144,8 +3079,8 @@ class TecnoApp(QMainWindow):
         back = QPushButton("← Voltar")
         back.setFixedWidth(120)
         back.setStyleSheet(
-            "background:transparent; color:#888; border:1px solid #444;"
-            "border-radius:6px; padding:8px; font-family:'Segoe UI';"
+            f"background: transparent; color: {Palette.FG_MUTED}; border: 1px solid {Palette.BORDER_SUBTLE};"
+            "border-radius: 6px; padding: 8px; font-family: 'Segoe UI';"
         )
         back.clicked.connect(self.show_gamer)
         save = QPushButton("Salvar preferências")
@@ -3167,7 +3102,7 @@ class TecnoApp(QMainWindow):
     def _build_advanced_row(self, tweak, checked):
         row = QFrame()
         row.setStyleSheet(
-            "QFrame{background:#0a0d14; border:1px solid #1a1f2b; border-radius:6px;}"
+            f"QFrame{{background:{Palette.BG_CARD}; border:1px solid {Palette.BORDER_SUBTLE}; border-radius:6px;}}"
         )
         lyt = QVBoxLayout(row)
         lyt.setContentsMargins(10, 8, 10, 8)
@@ -3177,7 +3112,7 @@ class TecnoApp(QMainWindow):
         top.setContentsMargins(0, 0, 0, 0)
         cb = QCheckBox(tweak.label)
         cb.setStyleSheet(
-            "QCheckBox{color:white; font-family:'Segoe UI'; font-size:12px;}"
+            f"QCheckBox{{color:{Palette.FG_PRIMARY}; font-family:'Segoe UI'; font-size:12px;}}"
             "QCheckBox::indicator{width:14px; height:14px;}"
         )
         if tweak.opt_in:
@@ -3197,7 +3132,7 @@ class TecnoApp(QMainWindow):
         if tweak.opt_in:
             tag_parts.append("OPT-IN")
         tag = QLabel(" · ".join(tag_parts))
-        color = {"low": "#4caf50", "medium": "#ffb300", "high": "#ff4b4b"}.get(tweak.risk.value, "#888")
+        color = {"low": Palette.STATE_ON, "medium": Palette.STATE_WARN, "high": Palette.STATE_DANGER}.get(tweak.risk.value, Palette.FG_MUTED)
         tag.setStyleSheet(f"color:{color}; font-family:'Consolas'; font-size:10px;")
         top.addWidget(tag)
         lyt.addLayout(top)
@@ -3205,13 +3140,13 @@ class TecnoApp(QMainWindow):
         if tweak.description:
             desc = QLabel(tweak.description)
             desc.setWordWrap(True)
-            desc.setStyleSheet("color:#888; font-family:'Segoe UI'; font-size:10px;")
+            desc.setStyleSheet(f"color:{Palette.FG_MUTED}; font-family:'Segoe UI'; font-size:10px;")
             lyt.addWidget(desc)
 
         if tweak.warning:
             warn = QLabel("⚠ " + tweak.warning)
             warn.setWordWrap(True)
-            warn.setStyleSheet("color:#ff8a4b; font-family:'Segoe UI'; font-size:10px;")
+            warn.setStyleSheet(f"color:{Palette.STATE_WARN}; font-family:'Segoe UI'; font-size:10px;")
             lyt.addWidget(warn)
 
         return row
@@ -3258,16 +3193,20 @@ class TecnoApp(QMainWindow):
                 pass
             self._gamer_worker = None
 
-        status_lbl = getattr(self, "status_lbl", None)
-        if self._is_widget_alive(status_lbl):
-            status_lbl.setText(
-                "> Aplicando Modo Gamer... aguarde."
-                if action == "activate"
-                else "> Desativando Modo Gamer..."
-            )
-            status_lbl.setStyleSheet(
-                f"color: {self.primary}; font-family: 'Consolas'; font-weight: bold;"
-            )
+        web = getattr(self, "_web_view", None)
+        if web is not None:
+            msg = "Aplicando Modo Gamer... aguarde." if action == "activate" else "Desativando Modo Gamer..."
+            web.page().runJavaScript(f"window.setStatus('{msg}');")
+            web.page().runJavaScript("document.getElementById('gamer-terminal').style.display='block'; window.clearTerminal();")
+            web.page().runJavaScript("window.appendTerminalLine('> Iniciando...');")
+        else:
+            status_lbl = getattr(self, "status_lbl", None)
+            if self._is_widget_alive(status_lbl):
+                status_lbl.setText(
+                    "> Aplicando Modo Gamer... aguarde."
+                    if action == "activate"
+                    else "> Desativando Modo Gamer..."
+                )
         QApplication.processEvents()
 
         try:
@@ -3301,7 +3240,29 @@ class TecnoApp(QMainWindow):
             short_msg = "Modo Gamer desativado"
         _save_module_status("gamer", short_msg)
         self._pending_status["gamer"] = f"> {short_msg}"
-        self.show_gamer()
+
+        active = (action == "activate")
+        web = getattr(self, "_web_view", None)
+        if web is not None:
+            js_active = "true" if active else "false"
+            status_escaped = short_msg.replace("'", "\\'")
+            web.page().runJavaScript(f"window.setGamerMode({js_active});")
+            web.page().runJavaScript(f"window.setStatus('{status_escaped}');")
+            # mostra log de tweaks aplicados no terminal
+            if active and report.applied:
+                web.page().runJavaScript("document.getElementById('gamer-terminal').style.display='block';")
+                web.page().runJavaScript("window.clearTerminal();")
+                for tw in report.applied:
+                    label = getattr(tw, 'label', str(tw))
+                    label_esc = label.replace("'", "\\'")
+                    web.page().runJavaScript(f"window.appendTerminalLine('✓ {label_esc}', 'success');")
+                for tw in (report.failed or []):
+                    label = getattr(tw, 'label', str(tw))
+                    label_esc = label.replace("'", "\\'")
+                    web.page().runJavaScript(f"window.appendTerminalLine('✗ {label_esc}', 'warn');")
+        else:
+            self.show_gamer()
+
         if action == "activate" and report.reboot_required:
             self.show_reboot_modal(report)
 
@@ -3476,6 +3437,7 @@ def _show_fatal_dialog(log_path: str):
 if __name__ == "__main__":
     try:
         app = QApplication(sys.argv)
+        app.setStyleSheet(GLOBAL_STYLESHEET)
         window = TecnoApp()
         window.show()
         sys.exit(app.exec())

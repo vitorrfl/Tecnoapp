@@ -174,3 +174,42 @@ class Bridge(QObject):
     def exitApp(self):
         if self._main:
             self._main.close()
+
+    # ── Aliases com nomes usados pelo app.js novo ───────────────
+    @Slot()
+    def onStartClean(self):
+        self.runLimpeza()
+
+    @Slot()
+    def onConfigClean(self):
+        if self._main and hasattr(self._main, "show_limpeza"):
+            self._main.show_limpeza()
+
+    @Slot()
+    def onGamerActivate(self):
+        self.runGamerActivate()
+
+    @Slot()
+    def onGamerDeactivate(self):
+        self.runGamerDeactivate()
+
+    @Slot(str)
+    def onRunRepair(self, tool_id: str):
+        if self._main and hasattr(self._main, "show_reparos_progresso"):
+            self._main.show_reparos_progresso(tool_id)
+
+    @Slot(str, bool)
+    def onToggle(self, toggle_id: str, checked: bool):
+        pass  # persistência de opt-ins — implementar quando integrar gamer avançado
+
+    @Slot()
+    def onRestorePoint(self):
+        self.createRestorePoint()
+
+    @Slot()
+    def onExit(self):
+        self.exitApp()
+
+    @Slot(str)
+    def onNavigate(self, screen_id: str):
+        pass  # navegação é gerida pelo JS; Python pode reagir se necessário
