@@ -1,0 +1,149 @@
+"""
+Updater — checa releases do GitHub e baixa a nova versão.
+
+Fluxo:
+    1. UpdateChecker (QThread) consulta a API de releases do GitHub
+    2. Compara a tag da release com APP_VERSION (semver simples)
+    3. Se houver versão nova, emite update_available com os detalhes
+    4. O usuário clica em "Atualizar"; UpdateDownloader baixa o .exe
+    5. O instalador roda e o app fecha para ser substituído
+
+Nada aqui levanta exceção para fora: falha de rede é silenciosa
+(update é opcional, não pode quebrar o app).
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import tempfile
+import urllib.request
+import urllib.error
+
+from PySide6.QtCore import QThread, Signal
+
+from version import APP_VERSION, GITHUB_REPO
+
+_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+_TIMEOUT = 8
+_UA = {"User-Agent": f"TecnoApp/{APP_VERSION}", "Accept": "application/vnd.github+json"}
+
+
+def parse_version(v: str) -> tuple:
+    """'v1.2.3' -> (1, 2, 3). Partes não numéricas viram 0."""
+    v = (v or "").strip().lstrip("vV").split("+")[0].split("-")[0]
+    parts = []
+    for chunk in v.split("."):
+        try:
+            parts.append(int(chunk))
+        except ValueError:
+            parts.append(0)
+    while len(parts) < 3:
+        parts.append(0)
+    return tuple(parts[:3])
+
+
+def is_newer(remote: str, local: str = APP_VERSION) -> bool:
+    """True se a versão remota for estritamente maior que a local."""
+    try:
+        return parse_version(remote) > parse_version(local)
+    except Exception:
+        return False
+
+
+class UpdateChecker(QThread):
+    """Consulta a release mais recente. Não bloqueia a UI."""
+
+    # (versao, notas, url_download, tamanho_bytes)
+    update_available = Signal(str, str, str, int)
+    up_to_date = Signal()
+    check_failed = Signal(str)
+
+    def run(self):
+        try:
+            req = urllib.request.Request(_API, headers=_UA)
+            with urllib.request.urlopen(req, timeout=_TIMEOUT) as r:
+                data = json.loads(r.read().decode("utf-8", "replace"))
+        except urllib.error.HTTPError as e:
+            # 404 = repo sem release publicada ainda; não é erro do usuário
+            self.check_failed.emit("sem releases" if e.code == 404 else f"HTTP {e.code}")
+            return
+        except Exception as e:
+            self.check_failed.emit(f"{type(e).__name__}")
+            return
+
+        try:
+            tag = data.get("tag_name") or ""
+            if not tag or not is_newer(tag):
+                self.up_to_date.emit()
+                return
+
+            # Procura um .exe nos assets da release
+            url, size = "", 0
+            for asset in data.get("assets") or []:
+                name = (asset.get("name") or "").lower()
+                if name.endswith(".exe"):
+                    url = asset.get("browser_download_url") or ""
+                    size = int(asset.get("size") or 0)
+                    break
+
+            if not url:
+                self.check_failed.emit("release sem instalador .exe")
+                return
+
+            self.update_available.emit(tag.lstrip("vV"), data.get("body") or "", url, size)
+        except Exception as e:
+            self.check_failed.emit(f"{type(e).__name__}")
+
+
+class UpdateDownloader(QThread):
+    """Baixa o instalador reportando progresso."""
+
+    progress = Signal(int)        # 0-100
+    finished_ok = Signal(str)     # caminho do arquivo baixado
+    failed = Signal(str)
+
+    def __init__(self, url: str, parent=None):
+        super().__init__(parent)
+        self._url = url
+
+    def run(self):
+        try:
+            dest = os.path.join(tempfile.gettempdir(), f"TecnoApp-Setup-{os.getpid()}.exe")
+            req = urllib.request.Request(self._url, headers=_UA)
+            with urllib.request.urlopen(req, timeout=30) as r:
+                total = int(r.headers.get("Content-Length") or 0)
+                done = 0
+                with open(dest, "wb") as f:
+                    while True:
+                        chunk = r.read(65536)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+                        done += len(chunk)
+                        if total > 0:
+                            self.progress.emit(min(100, int(done * 100 / total)))
+            self.progress.emit(100)
+            self.finished_ok.emit(dest)
+        except Exception as e:
+            self.failed.emit(f"{type(e).__name__}: {e}")
+
+
+def run_installer_and_exit(installer_path: str) -> bool:
+    """
+    Executa o instalador e sinaliza que o app deve fechar.
+
+    O app roda elevado, então o instalador herda a elevação e não dispara
+    um segundo UAC. Retorna False se o arquivo sumiu.
+    """
+    try:
+        if not os.path.isfile(installer_path):
+            return False
+        subprocess.Popen(
+            [installer_path, "/SILENT", "/CLOSEAPPLICATIONS", "/RESTARTAPPLICATIONS"],
+            close_fds=True,
+        )
+        return True
+    except Exception:
+        return False

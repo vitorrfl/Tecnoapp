@@ -51,5 +51,5 @@ class WebScreen(QWebEngineView):
         web_dir = Path(__file__).resolve().parent / "webview"
         index = web_dir / "index.html"
         if not index.exists():
-            raise FileNotFoundError(f"web/index.html não encontrado em {index}")
+            raise FileNotFoundError(f"webview/index.html não encontrado em {index}")
         self.load(QUrl.fromLocalFile(str(index)))

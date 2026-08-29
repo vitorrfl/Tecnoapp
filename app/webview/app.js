@@ -135,9 +135,144 @@
     observer.observe(s, { attributes: true });
   });
 
+  // ── data-bind: preenche spans de texto ────────────────────────
+  window.setBind = function (key, text) {
+    document.querySelectorAll(`[data-bind="${key}"]`)
+      .forEach(el => el.textContent = text);
+  };
+
+  // ── Formatadores ──────────────────────────────────────────────
+  function fmtBytes(b) {
+    if (!b || b <= 0) return '—';
+    const gb = b / (1024 ** 3);
+    if (gb >= 1) return gb.toFixed(1) + ' GB';
+    return (b / (1024 ** 2)).toFixed(0) + ' MB';
+  }
+
+  // ── Aplica o snapshot vindo do Python ─────────────────────────
+  function applySnapshot(s) {
+    if (!s) return;
+
+    // Cards do dashboard
+    setMetric('cpu',  Math.round(s.cpu.pct));
+    setMetric('ram',  Math.round(s.ram.pct));
+    setMetric('disk', Math.round(s.disk.pct));
+
+    // Processos: sem barra, so o numero
+    const procEl = document.querySelector('[data-metric="proc"] .metric-value');
+    if (procEl) procEl.textContent = s.proc;
+
+    // Subtitulos dos cards
+    setBind('cpu_sub',  `${s.cpu.threads} threads · ${s.cpu.freq}`);
+    setBind('ram_sub',  `${fmtBytes(s.ram.used)} / ${fmtBytes(s.ram.total)}`);
+    setBind('disk_sub', `${fmtBytes(s.disk.used)} / ${fmtBytes(s.disk.total)}`);
+
+    // Header
+    setBind('user',   s.os.user);
+    setBind('os',     s.os.system);
+    setBind('uptime', s.uptime);
+
+    // Painel SISTEMA
+    setBind('cpu_name', s.cpu.name);
+    setBind('ram_info', `${fmtBytes(s.ram.used)} / ${fmtBytes(s.ram.total)} (${Math.round(s.ram.pct)}%)`);
+    setBind('os_full',  `${s.os.system} · ${s.os.machine}`);
+
+    // Espelha na tela de especificacoes
+    setMetric('spec_cpu',  Math.round(s.cpu.pct));
+    setMetric('spec_ram',  Math.round(s.ram.pct));
+    setMetric('spec_disk', Math.round(s.disk.pct));
+    setBind('spec_proc', s.proc);
+    setBind('hw_cpu', s.cpu.name);
+    setBind('hw_ram', `${fmtBytes(s.ram.total)} total`);
+    setBind('hw_os',  `${s.os.system} (${s.os.version})`);
+    setBind('hw_disk', `${fmtBytes(s.disk.used)} / ${fmtBytes(s.disk.total)}`);
+  }
+  window.applySnapshot = applySnapshot;
+
+  // ── Hardware lento (GPU / placa-mae) ──────────────────────────
+  function applyHardware(hw) {
+    if (!hw) return;
+    setBind('hw_gpu',  hw.gpu_name || '—');
+    setBind('hw_mobo', `${hw.mobo_manufacturer || '—'} ${hw.mobo_model || ''}`.trim());
+  }
+
+  // ── Updater ───────────────────────────────────────────────────
+  let updatePending = false;
+
+  function showUpdateBanner(info) {
+    if (!info) return;
+    updatePending = true;
+    const el = document.getElementById('update-banner');
+    const tx = document.getElementById('update-text');
+    if (tx) {
+      const mb = info.size ? ` (${(info.size / (1024 * 1024)).toFixed(0)} MB)` : '';
+      tx.textContent = `Nova versao ${info.version} disponivel${mb}`;
+    }
+    if (el) el.style.display = 'flex';
+  }
+
+  window.startUpdate = function () {
+    if (!updatePending || !window.bridge) return;
+    const btn = document.getElementById('update-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'BAIXANDO...'; }
+    window.bridge.downloadUpdate();
+  };
+
+  function onUpdateProgress(pct) {
+    const el = document.getElementById('update-pct');
+    if (el) el.textContent = pct + '%';
+  }
+
+  function onUpdateStatus(msg) {
+    const tx = document.getElementById('update-text');
+    if (tx) tx.textContent = msg;
+    // Mensagens informativas (sem update) nao abrem o banner
+  }
+
+  // ── Conecta a bridge Qt ───────────────────────────────────────
+  function connectBridge() {
+    const b = window.bridge;
+    if (!b) return false;
+
+    if (b.metricsUpdated && b.metricsUpdated.connect) {
+      b.metricsUpdated.connect(applySnapshot);
+    }
+    if (b.hardwareReady && b.hardwareReady.connect) {
+      b.hardwareReady.connect(applyHardware);
+    }
+    // Snapshot imediato — nao espera o primeiro tick de 1s
+    if (b.updateAvailable && b.updateAvailable.connect) {
+      b.updateAvailable.connect(showUpdateBanner);
+    }
+    if (b.updateProgress && b.updateProgress.connect) {
+      b.updateProgress.connect(onUpdateProgress);
+    }
+    if (b.updateStatus && b.updateStatus.connect) {
+      b.updateStatus.connect(onUpdateStatus);
+    }
+
+    if (b.getInitialSnapshot) b.getInitialSnapshot(applySnapshot);
+    if (b.getHardware)        b.getHardware(applyHardware);
+
+    // Versao no rodape + checagem automatica no start
+    if (b.getVersion) b.getVersion(v => setText('.version-tag', 'v ' + v + ' · Tecnosup'));
+    if (b.checkForUpdates) b.checkForUpdates();
+
+    return true;
+  }
+
   // ── Init ───────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
     navigate('home');
     animateProgressBars();
+
+    // A bridge pode nao estar pronta no DOMContentLoaded (o callback do
+    // QWebChannel e assincrono). Tenta ate conectar.
+    if (!connectBridge()) {
+      let tries = 0;
+      const iv = setInterval(() => {
+        if (connectBridge() || ++tries > 50) clearInterval(iv);
+      }, 100);
+    }
   });
 })();

@@ -14,6 +14,7 @@ import shiboken6
 
 from gamer import build_engine, load_enabled_optins, save_enabled_optins
 from gamer.tweaks import Category
+from version import APP_VERSION
 from ui import (
     Card, HeroCard, MetricLabel, Chip, ResponsiveCardRow,
     Palette, Spacing, GLOBAL_STYLESHEET,
@@ -944,7 +945,7 @@ class TecnoApp(QMainWindow):
         side_lyt.addWidget(btn_sair)
 
         side_lyt.addSpacing(4)
-        ver = QLabel("v 1.0 · Tecnosup")
+        ver = QLabel(f"v {APP_VERSION} · Tecnosup")
         ver.setStyleSheet(f"color: {Palette.FG_SUBTLE}; font-family: 'Consolas'; font-size: 9px; background: transparent;")
         ver.setAlignment(Qt.AlignCenter)
         side_lyt.addWidget(ver)

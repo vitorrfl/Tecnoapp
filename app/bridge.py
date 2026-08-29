@@ -20,6 +20,9 @@ from PySide6.QtCore import QObject, QTimer, Signal, Slot
 
 import psutil
 
+from version import APP_VERSION
+from updater import UpdateChecker, UpdateDownloader, run_installer_and_exit
+
 from system_info import (
     os_info, cpu_static, cpu_pct, mem_live, disk_c_info, disks_info,
     processes_count, uptime_seconds, format_uptime,
@@ -30,6 +33,9 @@ from system_info import (
 class Bridge(QObject):
     metricsUpdated = Signal("QVariant")
     hardwareReady = Signal("QVariant")
+    updateAvailable = Signal("QVariant")
+    updateProgress = Signal(int)
+    updateStatus = Signal(str)
 
     def __init__(self, main_window=None, parent=None):
         super().__init__(parent)
@@ -41,6 +47,10 @@ class Bridge(QObject):
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick)
         self._timer.start(1000)
+
+        self._update_info: dict | None = None
+        self._checker = None
+        self._downloader = None
 
         self._hw_worker = HardwareInfoWorker()
         self._hw_worker.finished_info.connect(self._on_hardware)
@@ -174,6 +184,52 @@ class Bridge(QObject):
     def exitApp(self):
         if self._main:
             self._main.close()
+
+    # ── Updater ─────────────────────────────────────────────────
+    @Slot(result=str)
+    def getVersion(self):
+        return APP_VERSION
+
+    @Slot()
+    def checkForUpdates(self):
+        """Dispara a checagem em background. JS escuta updateAvailable."""
+        if self._checker and self._checker.isRunning():
+            return
+        self._checker = UpdateChecker()
+        self._checker.update_available.connect(self._on_update_available)
+        self._checker.up_to_date.connect(
+            lambda: self.updateStatus.emit("Voce esta na versao mais recente."))
+        self._checker.check_failed.connect(
+            lambda why: self.updateStatus.emit(f"Nao foi possivel checar ({why})."))
+        self._checker.start()
+
+    def _on_update_available(self, ver, notes, url, size):
+        self._update_info = {"version": ver, "notes": notes, "url": url, "size": size}
+        self.updateAvailable.emit(self._update_info)
+
+    @Slot()
+    def downloadUpdate(self):
+        """Baixa o instalador da versao detectada e executa ao terminar."""
+        if not self._update_info:
+            self.updateStatus.emit("Nenhuma atualizacao pendente.")
+            return
+        if self._downloader and self._downloader.isRunning():
+            return
+        self.updateStatus.emit("Baixando atualizacao...")
+        self._downloader = UpdateDownloader(self._update_info["url"])
+        self._downloader.progress.connect(self.updateProgress.emit)
+        self._downloader.finished_ok.connect(self._on_download_done)
+        self._downloader.failed.connect(
+            lambda e: self.updateStatus.emit(f"Falha no download: {e}"))
+        self._downloader.start()
+
+    def _on_download_done(self, path: str):
+        self.updateStatus.emit("Instalando... o app vai fechar.")
+        if run_installer_and_exit(path):
+            if self._main:
+                self._main.close()
+        else:
+            self.updateStatus.emit("Nao foi possivel iniciar o instalador.")
 
     # ── Aliases com nomes usados pelo app.js novo ───────────────
     @Slot()

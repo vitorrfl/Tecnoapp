@@ -19,6 +19,20 @@
 </head>
 <body>
 
+<!-- Banner de atualizacao (oculto ate haver versao nova) -->
+<div id="update-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;
+     background:linear-gradient(90deg,#0eb3ff,#7000ff);color:#fff;padding:10px 18px;
+     font-size:12px;display:none;align-items:center;gap:14px;box-shadow:0 2px 12px rgba(0,0,0,.5)">
+  <span id="update-text" style="flex:1">Nova versao disponivel</span>
+  <span id="update-pct" style="font-family:monospace;font-size:11px;opacity:.9"></span>
+  <button id="update-btn" onclick="window.startUpdate()"
+     style="background:#fff;color:#0a0a12;border:0;border-radius:4px;padding:5px 14px;
+            font-weight:700;font-size:11px;cursor:pointer">ATUALIZAR</button>
+  <button onclick="document.getElementById('update-banner').style.display='none'"
+     style="background:transparent;color:#fff;border:0;font-size:16px;cursor:pointer;opacity:.8">&times;</button>
+</div>
+
+
 <div class="app">
 
   <!-- ─────────── SIDEBAR ─────────── -->
