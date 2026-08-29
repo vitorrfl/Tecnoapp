@@ -12,7 +12,8 @@ venv/
 env/
 
 # PyInstaller
-*.spec
+# *.spec — tecnoapp.spec e versionado (config de build)
+!tecnoapp.spec
 *.manifest
 
 # IDE
@@ -35,3 +36,7 @@ tecnosup_clean_log.txt
 
 # Claude Code local settings
 .claude/
+
+# PyInstaller build
+/build/
+/dist/
