@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import tempfile
 import urllib.request
@@ -31,17 +32,34 @@ _UA = {"User-Agent": f"TecnoApp/{APP_VERSION}", "Accept": "application/vnd.githu
 
 
 def parse_version(v: str) -> tuple:
-    """'v1.2.3' -> (1, 2, 3). Partes não numéricas viram 0."""
-    v = (v or "").strip().lstrip("vV").split("+")[0].split("-")[0]
+    """
+    'v1.2.3' -> (1, 2, 3, 1, 0)  — release final
+    'v1.2.3-beta.4' -> (1, 2, 3, 0, 4)  — pre-release
+
+    Os dois ultimos campos ordenam pre-releases: o flag 0 faz qualquer
+    pre-release perder para a release final de mesmo numero (semver),
+    e o contador separa beta.1 < beta.2.
+    """
+    raw = (v or "").strip().lstrip("vV").split("+")[0]
+    base, _, pre = raw.partition("-")
+
     parts = []
-    for chunk in v.split("."):
+    for chunk in base.split("."):
         try:
             parts.append(int(chunk))
         except ValueError:
             parts.append(0)
     while len(parts) < 3:
         parts.append(0)
-    return tuple(parts[:3])
+    parts = parts[:3]
+
+    if not pre:
+        # Release final vence qualquer pre-release do mesmo numero
+        return tuple(parts) + (1, 0)
+
+    # Ultimo grupo numerico do sufixo: 'beta.4' -> 4, 'rc2' -> 2
+    nums = re.findall(r"\d+", pre)
+    return tuple(parts) + (0, int(nums[-1]) if nums else 0)
 
 
 def is_newer(remote: str, local: str = APP_VERSION) -> bool:
