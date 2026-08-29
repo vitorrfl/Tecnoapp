@@ -40,3 +40,4 @@ tecnosup_clean_log.txt
 # PyInstaller build
 /build/
 /dist/
+/installer_output/

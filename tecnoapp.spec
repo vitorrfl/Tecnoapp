@@ -18,6 +18,7 @@ a = Analysis(
     datas=[
         ('app/webview', 'webview'),      # front ativo (HTML/CSS/JS + assets)
         ('app/bg_grid.png', '.'),
+        ('app/assets/tecnoapp.ico', 'assets'),
     ],
     hiddenimports=[
         'psutil',
@@ -79,6 +80,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon='app/assets/tecnoapp.ico',
     # O app se auto-eleva via ShellExecuteW; nao pedimos manifest de admin
     # aqui para nao disparar dois UACs.
 )
