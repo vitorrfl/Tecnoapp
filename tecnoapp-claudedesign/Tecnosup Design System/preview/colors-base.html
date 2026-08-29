@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #030407; font-family: 'Segoe UI', system-ui, sans-serif; padding: 20px; }
+  .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
+  .swatch { border-radius: 8px; overflow: hidden; }
+  .color-block { height: 56px; }
+  .info { padding: 6px 8px; background: #0a0d14; border: 1px solid #1a2230; border-top: none; border-radius: 0 0 8px 8px; }
+  .name { color: #ccd2e0; font-size: 10px; font-weight: 600; }
+  .hex  { color: #888; font-family: 'Consolas', monospace; font-size: 9px; margin-top: 2px; }
+</style>
+</head>
+<body>
+<div class="grid">
+  <div class="swatch"><div class="color-block" style="background:#030407;border:1px solid #1a2230;border-radius:8px 8px 0 0"></div><div class="info"><div class="name">BG Base</div><div class="hex">#030407</div></div></div>
+  <div class="swatch"><div class="color-block" style="background:#0a0d14;border:1px solid #1a2230;border-radius:8px 8px 0 0"></div><div class="info"><div class="name">BG Card</div><div class="hex">#0a0d14</div></div></div>
+  <div class="swatch"><div class="color-block" style="background:#0d1220;border:1px solid #1a2230;border-radius:8px 8px 0 0"></div><div class="info"><div class="name">Card Hover</div><div class="hex">#0d1220</div></div></div>
+  <div class="swatch"><div class="color-block" style="background:#1a2230;border-radius:8px 8px 0 0"></div><div class="info"><div class="name">Border</div><div class="hex">#1a2230</div></div></div>
+  <div class="swatch"><div class="color-block" style="background:#0eb3ff;box-shadow:0 0 16px rgba(14,179,255,0.5);border-radius:8px 8px 0 0"></div><div class="info"><div class="name">Accent Cyan</div><div class="hex">#0eb3ff</div></div></div>
+  <div class="swatch"><div class="color-block" style="background:#7000ff;box-shadow:0 0 16px rgba(112,0,255,0.5);border-radius:8px 8px 0 0"></div><div class="info"><div class="name">Accent Purple</div><div class="hex">#7000ff</div></div></div>
+  <div class="swatch"><div class="color-block" style="background:linear-gradient(90deg,#0eb3ff,#7000ff);border-radius:8px 8px 0 0"></div><div class="info"><div class="name">Gamer Gradient</div><div class="hex">cyan → purple</div></div></div>
+</div>
+</body>
+</html>
