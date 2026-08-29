@@ -26,7 +26,9 @@ from PySide6.QtCore import QThread, Signal
 
 from version import APP_VERSION, GITHUB_REPO
 
-_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+# /releases (plural): /releases/latest exclui pre-releases, e o app
+# distribui betas. Pegamos a primeira release nao-draft da lista.
+_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=10"
 _TIMEOUT = 8
 _UA = {"User-Agent": f"TecnoApp/{APP_VERSION}", "Accept": "application/vnd.github+json"}
 
@@ -92,6 +94,13 @@ class UpdateChecker(QThread):
             return
 
         try:
+            # /releases devolve lista ordenada da mais recente para a mais antiga
+            if isinstance(data, list):
+                data = next((r for r in data if not r.get("draft")), None)
+            if not data:
+                self.up_to_date.emit()
+                return
+
             tag = data.get("tag_name") or ""
             if not tag or not is_newer(tag):
                 self.up_to_date.emit()
