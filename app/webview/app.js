@@ -770,7 +770,17 @@
 
   function updateDeepCounts() {
     setBind('deep_summary', deepChecked.size + ' de ' + deepCats.length + ' categorias marcadas');
+    // Alimenta tambem o card da tela de Limpeza
+    setBind('deep_active', String(deepChecked.size));
+    setBind('deep_total', String(deepCats.length));
   }
+
+  // Roda a limpeza profunda direto do card, sem passar pela tela de
+  // configuracao — mas mostrando o progresso la, que e onde esta o terminal.
+  window.deepRunFromHome = function () {
+    navigate('limpeza-profunda');
+    setTimeout(function () { window.deepRun(); }, 120);
+  };
 
   function onDeepCategories(r) {
     if (!r || !r.categories) return;

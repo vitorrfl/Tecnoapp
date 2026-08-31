@@ -174,7 +174,22 @@
         <div class="body">categorias ativas</div>
         <button class="btn-primary" style="width:360px;margin-top:4px" onclick="window.cleanRunQuick()">INICIAR LIMPEZA</button>
         <button class="btn-secondary" style="width:240px" onclick="navigate('limpeza-config')">Configurar o que é limpo →</button>
-        <button class="btn-secondary" style="width:240px" onclick="navigate('limpeza-profunda')">Limpeza profunda (libera GBs) →</button>
+      </div>
+
+      <div class="card-hero card-hero-center" style="margin-top:14px;border-color:var(--purple)">
+        <div class="label" style="color:var(--purple)">LIMPEZA PROFUNDA</div>
+        <div style="font-size:32px;font-weight:700;color:var(--fg-primary)">
+          <span data-bind="deep_active">—</span>
+          <span style="font-size:14px;font-weight:400;color:var(--fg-muted)"> de <span data-bind="deep_total">—</span></span>
+        </div>
+        <div class="body">categorias do Windows</div>
+        <div class="body" style="font-size:10px;color:var(--fg-muted);margin-top:-2px">
+          Alcanca o que a limpeza rapida nao toca &mdash; instalacoes antigas,
+          updates substituidos e drivers. E aqui que se liberam GBs.
+        </div>
+        <button class="btn-primary" style="width:360px;margin-top:4px;background:var(--purple)"
+                onclick="window.deepRunFromHome()">INICIAR LIMPEZA PROFUNDA</button>
+        <button class="btn-secondary" style="width:240px" onclick="navigate('limpeza-profunda')">Configurar e ver detalhes →</button>
       </div>
 
       <div class="terminal" id="clean-terminal" style="display:none"></div>
