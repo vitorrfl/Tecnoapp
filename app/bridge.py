@@ -223,6 +223,14 @@ class Bridge(QObject):
 
         state = _load_optimize_state() or {}
         saved = state.get("user_selections") or {}
+
+        # Estado real no sistema, nao o que esta marcado na tela.
+        try:
+            from optstate import get_states
+            aplicadas = get_states()
+        except Exception:
+            aplicadas = {}
+
         cats = []
         for c in _OPTIMIZE_CATEGORIES:
             cid = c["id"]
@@ -235,11 +243,17 @@ class Bridge(QObject):
                 "warning": c.get("warning", ""),
                 "default": bool(c.get("default")),
                 "checked": on,
+                "applied": aplicadas.get(cid),   # True / False / None (nao aplicavel)
             })
+
+        reais = [c for c in cats if c["applied"] is True]
+        checaveis = [c for c in cats if c["applied"] is not None]
         return {
             "categories": cats,
             "active": sum(1 for c in cats if c["checked"]),
             "total": len(cats),
+            "applied": len(reais),
+            "checkable": len(checaveis),
         }
 
     @Slot("QVariant")
@@ -299,6 +313,11 @@ class Bridge(QObject):
         payload = {"ok": True, "applied": int(applied or 0), "failed": int(failed or 0)}
         self.optimizeFinished.emit(payload)
         self._js("onOptimizeFinished", payload)
+        # Reconsulta o estado real para a tela refletir o que ficou ativo
+        try:
+            self._js("onOptimizeCategories", self.getOptimizeCategories())
+        except Exception:
+            pass
 
     @Slot()
     def runOtimizacao(self):
@@ -530,11 +549,17 @@ class Bridge(QObject):
 
         self._bloat_remover = BloatRemover(items, make_restore=True)
         self._bloat_remover.progress.connect(self.bloatProgress.emit)
+        self._bloat_remover.progress.connect(
+            lambda cur, tot, nome: self._js("onBloatProgress", int(cur), int(tot), str(nome)))
+        self._bloat_remover.item_done.connect(
+            lambda nome, ok, err: self._js("onBloatItem", str(nome), bool(ok), str(err or "")))
         self._bloat_remover.finished_all.connect(self._on_bloat_done)
         self._bloat_remover.start()
 
     def _on_bloat_done(self, summary: dict):
-        self.bloatFinished.emit(dict(summary or {}))
+        payload = dict(summary or {})
+        self.bloatFinished.emit(payload)
+        self._js("onBloatFinished", payload)
         self.rescanBloatware()   # atualiza a lista com o que sobrou
 
     # ── Aliases com nomes usados pelo app.js novo ───────────────

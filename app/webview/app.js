@@ -435,20 +435,38 @@
     }, function () {
       const btn = document.getElementById('debloat-btn');
       if (btn) { btn.disabled = true; btn.style.opacity = '.4'; }
+      termClear('debloat-terminal');
+      termLine('debloat-terminal', '> criando ponto de restauracao...');
       window.bridge.removeBloatware(Array.from(bloatChecked));
     });
   };
 
   function onBloatProgress(cur, total, name) {
-    setBind('debloat_status', `Removendo ${cur}/${total}: ${name}`);
+    setBind('debloat_status', 'Removendo ' + cur + '/' + total + ': ' + name);
+    termLine('debloat-terminal', '> [' + cur + '/' + total + '] ' + name);
+  }
+
+  // Resultado de cada item: o remover reporta sucesso ou o motivo da falha.
+  function onBloatItem(name, ok, err) {
+    if (!ok) {
+      termLine('debloat-terminal', '! falhou: ' + name + (err ? ' - ' + err : ''), '#e8a33d');
+    }
   }
 
   function onBloatFinished(sum) {
     if (!sum) return;
-    const parts = [`${sum.removed} removido(s)`];
-    if (sum.freed_mb > 0) parts.push(`${sum.freed_mb} MB liberados`);
-    if (sum.failed > 0)   parts.push(`${sum.failed} falhou(ram)`);
-    setBind('debloat_status', parts.join(' · '));
+    const parts = [sum.removed + ' removido(s)'];
+    if (sum.freed_mb > 0) parts.push(sum.freed_mb + ' MB liberados');
+    if (sum.failed > 0)   parts.push(sum.failed + ' falhou(ram)');
+    const resumo = parts.join(' | ');
+
+    termLine('debloat-terminal', '> concluido - ' + resumo,
+             sum.failed > 0 ? '#e8a33d' : 'var(--state-on)');
+    setBind('debloat_status', resumo);
+
+    // Reabilita o botao: sem isso a tela ficava travada apos a remocao.
+    const btn = document.getElementById('debloat-btn');
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; }
   }
 
   // ── Limpeza ───────────────────────────────────────────────────
@@ -711,13 +729,19 @@
       const rec = c.default
         ? '<span style="font-size:9px;color:var(--state-on);font-weight:700">RECOMENDADO</span>'
         : '';
+      // Selo de estado real: o usuario precisa ver o que ja esta ativo,
+      // senao reaplica indefinidamente sem retorno.
+      const sel = c.applied === true
+        ? '<span style="font-size:9px;color:var(--state-on);font-weight:700;'
+          + 'border:1px solid var(--state-on);border-radius:3px;padding:1px 5px">&#10003; ATIVO</span>'
+        : '';
       return '<label style="display:flex;gap:12px;align-items:flex-start;padding:11px 14px;'
         + 'border-bottom:1px solid var(--border-subtle);cursor:pointer">'
         + '<input type="checkbox" data-opt="' + i + '" ' + on + ' style="margin-top:3px;flex-shrink:0">'
         + '<span style="flex:1;min-width:0">'
         + '<span style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap">'
         + '<span style="font-size:11px;color:var(--fg-primary);font-weight:600">' + c.label + '</span>'
-        + rec + '</span>'
+        + rec + sel + '</span>'
         + '<span style="display:block;font-size:10px;color:var(--fg-muted);margin-top:2px;line-height:1.5">'
         + (c.desc || '') + '</span>' + warn + '</span>'
         + '<span class="mono" style="font-size:10px;color:var(--fg-secondary);flex-shrink:0">'
@@ -738,19 +762,47 @@
     updateOptCounts();
   }
 
+  let optApplied = 0, optCheckable = 0;
+
   function updateOptCounts() {
-    setBind('opt_active', String(optChecked.size));
-    setBind('opt_total', String(optCats.length));
-    setBind('opt_hint', optChecked.size ? '' : 'Selecione ao menos uma otimizacao.');
+    // O card mostra o que esta REALMENTE ativo no sistema; o botao fala
+    // do que esta marcado para aplicar.
+    setBind('opt_active', String(optApplied));
+    setBind('opt_total', String(optCheckable));
+
+    const btn = document.getElementById('opt-btn');
+    if (!btn) return;
+
+    // Quantas das marcadas ainda nao estao aplicadas
+    const pendentes = optCats.filter(function (c) {
+      return optChecked.has(c.id) && c.applied !== true;
+    }).length;
+
+    if (!optChecked.size) {
+      btn.disabled = true; btn.style.opacity = '.5'; btn.style.cursor = 'not-allowed';
+      btn.textContent = 'SELECIONE UMA OTIMIZACAO';
+      setBind('opt_hint', 'Nenhuma otimizacao marcada.');
+    } else if (pendentes === 0) {
+      btn.disabled = true; btn.style.opacity = '.5'; btn.style.cursor = 'not-allowed';
+      btn.textContent = 'TUDO JA APLICADO';
+      setBind('opt_hint', 'As otimizacoes marcadas ja estao ativas no sistema.');
+    } else {
+      btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer';
+      btn.textContent = 'APLICAR ' + pendentes + (pendentes === 1 ? ' OTIMIZACAO' : ' OTIMIZACOES');
+      setBind('opt_hint', '');
+    }
   }
 
   function onOptimizeCategories(r) {
     if (!r || !r.categories) return;
     optCats = r.categories;
+    optApplied = r.applied || 0;
+    optCheckable = r.checkable || optCats.length;
     optChecked.clear();
     optCats.forEach(function (c) { if (c.checked) optChecked.add(c.id); });
     renderOpt();
   }
+  window.onOptimizeCategories = onOptimizeCategories;
 
   window.optSelect = function (mode) {
     optChecked.clear();
@@ -783,8 +835,6 @@
   }
 
   function onOptimizeFinished(r) {
-    const btn = document.getElementById('opt-btn');
-    if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'APLICAR OTIMIZACOES'; }
     if (!r) return;
     const parts = [r.applied + ' aplicada(s)'];
     if (r.failed > 0) parts.push(r.failed + ' falhou(ram)');
@@ -913,6 +963,9 @@
 
   // Expostos em window: o Python empurra o progresso via runJavaScript
   // porque os sinais de progresso do QWebChannel nao chegavam ao JS.
+  window.onBloatProgress = onBloatProgress;
+  window.onBloatItem = onBloatItem;
+  window.onBloatFinished = onBloatFinished;
   window.onCleanStep = onCleanStep;
   window.onCleanCalculating = onCleanCalculating;
   window.onCleanFinished = onCleanFinished;
