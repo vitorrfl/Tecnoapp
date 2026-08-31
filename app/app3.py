@@ -2959,7 +2959,7 @@ class TecnoApp(QMainWindow):
         title.setStyleSheet(f"color: {Palette.FG_PRIMARY}; background: transparent;")
         panel_lyt.addWidget(title)
 
-        gamer_sub = QLabel("17 tweaks reversíveis de CPU, GPU, sistema e rede")
+        gamer_sub = QLabel("18 tweaks reversíveis de CPU, GPU, sistema e rede")
         gamer_sub.setStyleSheet(
             f"color: {Palette.FG_MUTED}; font-family: 'Segoe UI'; "
             f"font-size: 12px; background: transparent;"

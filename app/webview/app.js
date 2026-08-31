@@ -6,48 +6,113 @@
 (function () {
   'use strict';
 
+  // -- Seletor de processos -------------------------------------
+  // Substitui a digitacao do nome do .exe: ninguem sabe que o processo do
+  // Valorant chama VALORANT-Win64-Shipping.exe, e um nome digitado errado
+  // era salvo sem aviso e nunca funcionava.
+  let procAll = [];
+  let procFilter = '';
+  const procSel = new Set();
+
+  window.openProcessPicker = function () {
+    if (!window.bridge || !window.bridge.getAllProcesses) return;
+    procSel.clear();
+    gameTargets.forEach(function (t) { procSel.add(t); });
+    procFilter = '';
+    const campo = document.getElementById('proc-filter');
+    if (campo) campo.value = '';
+    document.getElementById('proc-picker').style.display = 'flex';
+    document.getElementById('proc-picker-list').innerHTML =
+      '<div style="padding:16px;color:var(--fg-muted);font-size:11px">Lendo processos...</div>';
+    window.bridge.getAllProcesses(function (r) {
+      procAll = (r && r.processes) || [];
+      renderPicker();
+    });
+  };
+
+  window.closeProcessPicker = function () {
+    document.getElementById('proc-picker').style.display = 'none';
+  };
+
+  window.filterPicker = function (txt) {
+    procFilter = (txt || '').trim().toLowerCase();
+    renderPicker();
+  };
+
+  function renderPicker() {
+    const box = document.getElementById('proc-picker-list');
+    if (!box) return;
+
+    const vis = procFilter
+      ? procAll.filter(function (p) { return p.name.toLowerCase().indexOf(procFilter) >= 0; })
+      : procAll;
+
+    if (!vis.length) {
+      box.innerHTML = '<div style="padding:16px;color:var(--fg-muted);font-size:11px">'
+        + 'Nenhum processo com esse nome.</div>';
+      return;
+    }
+
+    box.innerHTML = vis.map(function (p) {
+      const i = procAll.indexOf(p);
+      const on = procSel.has(p.name) ? 'checked' : '';
+      const selo = p.likely_game
+        ? '<span style="font-size:9px;color:var(--state-on);font-weight:700">PROVAVEL JOGO</span>'
+        : (p.is_system
+          ? '<span style="font-size:9px;color:var(--fg-muted)">sistema</span>' : '');
+      const inst = p.instances > 1
+        ? '<span style="font-size:9px;color:var(--fg-muted)">x' + p.instances + '</span>' : '';
+      return '<label style="display:flex;gap:10px;align-items:center;padding:8px 12px;'
+        + 'border-bottom:1px solid var(--border-subtle);cursor:pointer">'
+        + '<input type="checkbox" data-proc="' + i + '" ' + on + ' style="flex-shrink:0">'
+        + '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;'
+        + 'white-space:nowrap;font-size:11px;color:var(--fg-primary);font-family:var(--font-mono)">'
+        + p.name + '</span>' + inst + selo
+        + '<span class="mono" style="font-size:10px;color:var(--fg-secondary);flex-shrink:0;'
+        + 'min-width:56px;text-align:right">' + p.mem_mb + ' MB</span></label>';
+    }).join('');
+
+    box.querySelectorAll('input[data-proc]').forEach(function (cb) {
+      cb.addEventListener('change', function (e) {
+        const p = procAll[parseInt(e.target.dataset.proc, 10)];
+        if (!p) return;
+        if (e.target.checked) procSel.add(p.name); else procSel.delete(p.name);
+      });
+    });
+  }
+
+  window.confirmProcessPicker = function () {
+    gameTargets.clear();
+    procSel.forEach(function (n) { gameTargets.add(n); });
+
+    // Os escolhidos entram na lista principal, mesmo os que nao vieram da
+    // deteccao automatica.
+    procSel.forEach(function (nome) {
+      const existe = gameCands.some(function (c) {
+        return c.name.toLowerCase() === nome.toLowerCase();
+      });
+      if (!existe) {
+        const p = procAll.filter(function (x) { return x.name === nome; })[0];
+        gameCands.unshift(p || {
+          name: nome, mem_mb: 0, priority: 'nao esta aberto',
+          likely_game: false, is_boosted: false
+        });
+      }
+    });
+
+    if (window.bridge && window.bridge.setGameTargets) {
+      window.bridge.setGameTargets(Array.from(gameTargets));
+    }
+    window.closeProcessPicker();
+    renderGames();
+    atualizarPrioStatus();
+  };
+
   // -- Prioridade de jogo ---------------------------------------
   let gameCands = [];
   const gameTargets = new Set();
 
   let gameFilter = '';
-
-  window.filterGames = function (txt) {
-    gameFilter = (txt || '').trim().toLowerCase();
-    renderGames();
-  };
-
-  // Adiciona um processo pelo nome digitado: a deteccao automatica pode
-  // nao achar o jogo (nome incomum, pasta fora do padrao, ainda fechado).
-  window.addGameManual = function () {
-    const campo = document.getElementById('game-search');
-    if (!campo) return;
-    let nome = (campo.value || '').trim();
-    if (!nome) return;
-    if (!/\.exe$/i.test(nome)) nome += '.exe';
-
-    if (!gameTargets.has(nome)) {
-      gameTargets.add(nome);
-      // Se nao esta na lista detectada, entra como entrada manual para
-      // continuar visivel e poder ser desmarcado depois.
-      const existe = gameCands.some(function (c) {
-        return c.name.toLowerCase() === nome.toLowerCase();
-      });
-      if (!existe) {
-        gameCands.unshift({
-          name: nome, mem_mb: 0, priority: 'nao esta aberto',
-          likely_game: false, is_boosted: false, manual: true
-        });
-      }
-      if (window.bridge && window.bridge.setGameTargets) {
-        window.bridge.setGameTargets(Array.from(gameTargets));
-      }
-    }
-    campo.value = '';
-    gameFilter = '';
-    renderGames();
-    atualizarPrioStatus();
-  };
 
   function atualizarPrioStatus() {
     setBind('prio_status', gameTargets.size

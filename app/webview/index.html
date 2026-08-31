@@ -56,6 +56,39 @@
   </div>
 </div>
 
+<!-- Seletor de processos (escolher o jogo na mao) -->
+<div id="proc-picker" style="display:none;position:fixed;inset:0;z-index:10001;
+     background:rgba(3,4,7,.8);align-items:center;justify-content:center;padding:24px">
+  <div style="background:var(--bg-card);border:1px solid var(--border-subtle);
+              border-radius:10px;max-width:620px;width:100%;
+              box-shadow:0 18px 50px rgba(0,0,0,.6);overflow:hidden;text-align:left">
+    <div style="height:3px;background:var(--cyan)"></div>
+    <div style="padding:20px 22px 12px">
+      <div style="font-size:14px;font-weight:700;color:var(--fg-primary);margin-bottom:4px">
+        Escolher processo
+      </div>
+      <div style="font-size:11px;color:var(--fg-muted);line-height:1.55;margin-bottom:12px">
+        Abra o jogo antes, para ele aparecer aqui. Marque um ou mais processos
+        para receberem prioridade alta.
+      </div>
+      <input id="proc-filter" type="text" spellcheck="false" placeholder="Filtrar por nome"
+             oninput="window.filterPicker(this.value)"
+             style="width:100%;box-sizing:border-box;background:var(--bg-terminal);
+                    border:1px solid var(--border-subtle);border-radius:6px;
+                    color:var(--fg-primary);font-size:11px;padding:8px 11px;
+                    font-family:var(--font-mono);outline:none;margin-bottom:10px">
+      <div id="proc-picker-list" class="scroll-list"
+           style="max-height:44vh;border:1px solid var(--border-subtle);border-radius:6px"></div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;padding:0 22px 18px">
+      <button class="btn-ghost" onclick="window.closeProcessPicker()"
+              style="min-width:110px;padding:9px 18px;font-size:11px">FECHAR</button>
+      <button class="btn-primary" onclick="window.confirmProcessPicker()"
+              style="min-width:150px;padding:9px 18px;font-size:11px">CONFIRMAR</button>
+    </div>
+  </div>
+</div>
+
 <div class="app">
 
   <!-- ─────────── SIDEBAR ─────────── -->
@@ -163,7 +196,7 @@
         </div>
         <div class="card-hero purple flex-1 col" style="gap:10px">
           <div class="label" style="color:var(--purple)">MODO GAMER</div>
-          <div class="body" style="flex:1">17 tweaks reversíveis para mais FPS e menos latência.</div>
+          <div class="body" style="flex:1">18 tweaks reversíveis para mais FPS e menos latência.</div>
           <button class="btn-gamer" style="padding:8px 14px;font-size:11px" onclick="navigate('gamer')">Ativar →</button>
         </div>
       </div>
@@ -548,7 +581,7 @@
     <section id="screen-gamer" class="screen">
       <div>
         <div class="h1">MODO GAMER</div>
-        <div class="subtitle">17 tweaks reversíveis de CPU, GPU, sistema e rede</div>
+        <div class="subtitle">18 tweaks reversíveis de CPU, GPU, sistema e rede</div>
       </div>
 
       <div id="gamer-hero-card" class="card-hero purple card-hero-center">
@@ -567,30 +600,22 @@
               opcional
             </span>
           </div>
-          <button class="btn-ghost" onclick="window.refreshGames()"
-                  style="font-size:10px;padding:5px 12px;flex-shrink:0">ATUALIZAR</button>
+          <div class="row" style="gap:6px;flex-shrink:0">
+            <button class="btn-ghost" onclick="window.openProcessPicker()"
+                    style="font-size:10px;padding:5px 12px">VER TODOS OS PROCESSOS</button>
+            <button class="btn-ghost" onclick="window.refreshGames()"
+                    style="font-size:10px;padding:5px 12px">ATUALIZAR</button>
+          </div>
         </div>
         <div style="font-size:11px;color:var(--fg-secondary);line-height:1.6;
                     text-align:left;margin-bottom:12px">
           Marque o jogo abaixo para ele passar na frente dos outros programas
           na disputa por CPU. Vale quando algo pesado roda junto &mdash; navegador,
           Discord, gravação de tela.
-          <span style="color:var(--fg-muted)">Não achou? Digite o nome do
-          <span class="mono">.exe</span> e clique em Adicionar.</span>
+          <span style="color:var(--fg-muted)">Não está na lista? Use
+          "Ver todos os processos".</span>
         </div>
 
-        <div class="row" style="gap:8px;margin-bottom:10px">
-          <input id="game-search" type="text" spellcheck="false"
-                 placeholder="Filtrar, ou digite o nome do .exe do jogo"
-                 oninput="window.filterGames(this.value)"
-                 onkeydown="if(event.key==='Enter'){window.addGameManual();}"
-                 style="flex:1;min-width:0;background:var(--bg-terminal);
-                        border:1px solid var(--border-subtle);border-radius:6px;
-                        color:var(--fg-primary);font-size:11px;padding:8px 11px;
-                        font-family:var(--font-mono);outline:none">
-          <button class="btn-ghost" onclick="window.addGameManual()"
-                  style="font-size:10px;padding:7px 14px;flex-shrink:0">ADICIONAR</button>
-        </div>
 
         <div id="game-list" class="scroll-list" style="max-height:190px;text-align:left">
           <div style="padding:14px;color:var(--fg-muted);font-size:11px">

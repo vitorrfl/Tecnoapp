@@ -205,3 +205,62 @@ def get_priority(pid: int) -> str | None:
 def restore_priority(pid: int) -> tuple[bool, str]:
     """Volta o processo para prioridade Normal."""
     return set_priority(pid, PRIORITY_NORMAL)
+
+
+def list_all_processes(min_mb: int = 5) -> list[dict]:
+    """
+    Todos os processos com janela ou consumo relevante.
+
+    A deteccao heuristica pode nao achar o jogo. Em vez de pedir para o
+    usuario digitar o nome do executavel — que quase ninguem sabe e nao da
+    para validar — esta lista mostra tudo e ele escolhe.
+
+    Agrupa por nome: um jogo abre varios processos filhos, e listar 12
+    linhas de chrome.exe nao ajuda ninguem.
+    """
+    agrupado: dict[str, dict] = {}
+
+    for p in psutil.process_iter(["pid", "name", "exe", "memory_info"]):
+        try:
+            info = p.info
+            nome = (info.get("name") or "").strip()
+            if not nome:
+                continue
+
+            mem = info.get("memory_info")
+            mb = (mem.rss if mem else 0) / (1024 * 1024)
+            exe = info.get("exe") or ""
+
+            item = agrupado.get(nome)
+            if item is None:
+                try:
+                    nice = p.nice()
+                except Exception:
+                    nice = None
+                agrupado[nome] = {
+                    "pid": int(info.get("pid") or 0),
+                    "name": nome,
+                    "exe": exe,
+                    "mem_mb": round(mb),
+                    "instances": 1,
+                    "likely_game": _is_game_path(exe),
+                    "priority": _PRIORITY_LABEL.get(nice, "Normal"),
+                    "is_boosted": nice in (psutil.ABOVE_NORMAL_PRIORITY_CLASS,
+                                           psutil.HIGH_PRIORITY_CLASS),
+                    "is_system": any(h in (exe or "").lower()
+                                     for h in _NEVER_GAME_HINTS),
+                }
+            else:
+                item["mem_mb"] = round(item["mem_mb"] + mb)
+                item["instances"] += 1
+                if not item["exe"] and exe:
+                    item["exe"] = exe
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+        except Exception:
+            continue
+
+    itens = [v for v in agrupado.values() if v["mem_mb"] >= min_mb]
+    # Provaveis jogos primeiro, depois nao-sistema, depois por memoria
+    itens.sort(key=lambda x: (not x["likely_game"], x["is_system"], -x["mem_mb"]))
+    return itens

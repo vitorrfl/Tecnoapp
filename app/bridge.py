@@ -602,6 +602,25 @@ class Bridge(QObject):
         except Exception:
             return {"candidates": [], "targets": []}
 
+    @Slot(result="QVariant")
+    def getAllProcesses(self):
+        """
+        Todos os processos, para o usuario escolher o jogo na mao.
+
+        Existe porque a deteccao heuristica pode nao achar o jogo — e
+        pedir para digitar o nome do executavel nao funciona: quase
+        ninguem sabe, e nao ha como validar o que foi digitado.
+        """
+        try:
+            from gamer.gamedetect import list_all_processes
+            from gamer.prefs import load_priority_targets
+            return {
+                "processes": list_all_processes(),
+                "targets": load_priority_targets(),
+            }
+        except Exception:
+            return {"processes": [], "targets": []}
+
     @Slot("QVariant")
     def setGameTargets(self, names):
         """Salva quais processos recebem prioridade alta no Modo Gamer."""
