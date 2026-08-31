@@ -10,32 +10,90 @@
   let gameCands = [];
   const gameTargets = new Set();
 
+  let gameFilter = '';
+
+  window.filterGames = function (txt) {
+    gameFilter = (txt || '').trim().toLowerCase();
+    renderGames();
+  };
+
+  // Adiciona um processo pelo nome digitado: a deteccao automatica pode
+  // nao achar o jogo (nome incomum, pasta fora do padrao, ainda fechado).
+  window.addGameManual = function () {
+    const campo = document.getElementById('game-search');
+    if (!campo) return;
+    let nome = (campo.value || '').trim();
+    if (!nome) return;
+    if (!/\.exe$/i.test(nome)) nome += '.exe';
+
+    if (!gameTargets.has(nome)) {
+      gameTargets.add(nome);
+      // Se nao esta na lista detectada, entra como entrada manual para
+      // continuar visivel e poder ser desmarcado depois.
+      const existe = gameCands.some(function (c) {
+        return c.name.toLowerCase() === nome.toLowerCase();
+      });
+      if (!existe) {
+        gameCands.unshift({
+          name: nome, mem_mb: 0, priority: 'nao esta aberto',
+          likely_game: false, is_boosted: false, manual: true
+        });
+      }
+      if (window.bridge && window.bridge.setGameTargets) {
+        window.bridge.setGameTargets(Array.from(gameTargets));
+      }
+    }
+    campo.value = '';
+    gameFilter = '';
+    renderGames();
+    atualizarPrioStatus();
+  };
+
+  function atualizarPrioStatus() {
+    setBind('prio_status', gameTargets.size
+      ? gameTargets.size + ' processo(s) receberao prioridade alta no Modo Gamer'
+      : 'Nenhum processo escolhido.');
+  }
+
   function renderGames() {
     const box = document.getElementById('game-list');
     if (!box) return;
 
-    if (!gameCands.length) {
-      box.innerHTML = '<div style="padding:14px;text-align:center;color:var(--fg-muted);'
-        + 'font-size:11px">Nenhum processo candidato. Abra o jogo e clique em ATUALIZAR.</div>';
+    const visiveis = gameFilter
+      ? gameCands.filter(function (c) { return c.name.toLowerCase().indexOf(gameFilter) >= 0; })
+      : gameCands;
+
+    if (!visiveis.length) {
+      const msg = gameFilter
+        ? 'Nenhum processo com esse nome. Clique em ADICIONAR para incluir '
+          + '"' + gameFilter + '" mesmo assim.'
+        : 'Nenhum processo candidato. Abra o jogo e clique em ATUALIZAR, '
+          + 'ou digite o nome do .exe acima.';
+      box.innerHTML = '<div style="padding:14px;color:var(--fg-muted);font-size:11px;'
+        + 'line-height:1.55">' + msg + '</div>';
       return;
     }
 
-    box.innerHTML = gameCands.map(function (c, i) {
+    box.innerHTML = visiveis.map(function (c) {
+      const i = gameCands.indexOf(c);
       const on = gameTargets.has(c.name) ? 'checked' : '';
-      const selo = c.likely_game
-        ? '<span style="font-size:9px;color:var(--state-on);font-weight:700">PROVAVEL JOGO</span>'
-        : '';
+      const selo = c.manual
+        ? '<span style="font-size:9px;color:var(--purple);font-weight:700">MANUAL</span>'
+        : (c.likely_game
+          ? '<span style="font-size:9px;color:var(--state-on);font-weight:700">PROVAVEL JOGO</span>'
+          : '');
       const prio = c.is_boosted
         ? '<span style="font-size:9px;color:var(--cyan);font-weight:700">' + c.priority + '</span>'
         : '<span style="font-size:9px;color:var(--fg-muted)">' + c.priority + '</span>';
+      const mem = c.mem_mb > 0 ? c.mem_mb + ' MB' : '—';
       return '<label style="display:flex;gap:10px;align-items:center;padding:8px 12px;'
-        + 'border-bottom:1px solid var(--border-subtle);cursor:pointer">'
+        + 'border-bottom:1px solid var(--border-subtle);cursor:pointer;text-align:left">'
         + '<input type="checkbox" data-game="' + i + '" ' + on + ' style="flex-shrink:0">'
         + '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;'
         + 'white-space:nowrap;font-size:11px;color:var(--fg-primary)">' + c.name + '</span>'
         + selo + prio
-        + '<span class="mono" style="font-size:10px;color:var(--fg-secondary);flex-shrink:0">'
-        + c.mem_mb + ' MB</span></label>';
+        + '<span class="mono" style="font-size:10px;color:var(--fg-secondary);flex-shrink:0;'
+        + 'min-width:52px;text-align:right">' + mem + '</span></label>';
     }).join('');
 
     box.querySelectorAll('input[data-game]').forEach(function (cb) {
@@ -46,9 +104,7 @@
         if (window.bridge && window.bridge.setGameTargets) {
           window.bridge.setGameTargets(Array.from(gameTargets));
         }
-        setBind('prio_status', gameTargets.size
-          ? gameTargets.size + ' processo(s) receberao prioridade alta no Modo Gamer'
-          : 'Nenhum processo escolhido.');
+        atualizarPrioStatus();
       });
     });
   }
@@ -58,10 +114,22 @@
     gameCands = r.candidates || [];
     gameTargets.clear();
     (r.targets || []).forEach(function (t) { gameTargets.add(t); });
+
+    // Alvos salvos que nao estao rodando agora continuam na lista, senao
+    // sumiriam da tela e o usuario nao teria como desmarca-los.
+    gameTargets.forEach(function (nome) {
+      const existe = gameCands.some(function (c) {
+        return c.name.toLowerCase() === nome.toLowerCase();
+      });
+      if (!existe) {
+        gameCands.unshift({
+          name: nome, mem_mb: 0, priority: 'nao esta aberto',
+          likely_game: false, is_boosted: false, manual: true
+        });
+      }
+    });
     renderGames();
-    setBind('prio_status', gameTargets.size
-      ? gameTargets.size + ' processo(s) receberao prioridade alta no Modo Gamer'
-      : 'Nenhum processo escolhido.');
+    atualizarPrioStatus();
   }
   window.onGameCandidates = onGameCandidates;
 

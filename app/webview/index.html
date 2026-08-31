@@ -557,27 +557,49 @@
         <div id="gamer-btn-group">
           <button class="btn-gamer" onclick="window.bridge?.onGamerActivate?.()">ATIVAR MODO GAMER</button>
         </div>
-        <div class="card" style="margin-bottom:14px">
-        <div class="between" style="margin-bottom:8px">
+        <div class="card" style="margin-bottom:14px;text-align:left">
+        <div class="between" style="margin-bottom:4px;text-align:left">
           <div>
-            <div style="font-size:12px;font-weight:700;color:var(--fg-primary)">
+            <span style="font-size:12px;font-weight:700;color:var(--fg-primary)">
               Prioridade do jogo
-            </div>
-            <div style="font-size:10px;color:var(--fg-muted);margin-top:2px;line-height:1.5">
-              Escolha o jogo para receber prioridade Alta de CPU quando o Modo
-              Gamer estiver ativo. Mais direto que o MMCSS, que e generico.
-            </div>
+            </span>
+            <span style="font-size:9px;color:var(--fg-muted);margin-left:8px">
+              opcional
+            </span>
           </div>
           <button class="btn-ghost" onclick="window.refreshGames()"
                   style="font-size:10px;padding:5px 12px;flex-shrink:0">ATUALIZAR</button>
         </div>
-        <div id="game-list" class="scroll-list" style="max-height:180px">
-          <div style="padding:14px;text-align:center;color:var(--fg-muted);font-size:11px">
+        <div style="font-size:11px;color:var(--fg-secondary);line-height:1.6;
+                    text-align:left;margin-bottom:12px">
+          Marque o jogo abaixo para ele passar na frente dos outros programas
+          na disputa por CPU. Vale quando algo pesado roda junto &mdash; navegador,
+          Discord, gravação de tela.
+          <span style="color:var(--fg-muted)">Não achou? Digite o nome do
+          <span class="mono">.exe</span> e clique em Adicionar.</span>
+        </div>
+
+        <div class="row" style="gap:8px;margin-bottom:10px">
+          <input id="game-search" type="text" spellcheck="false"
+                 placeholder="Filtrar, ou digite o nome do .exe do jogo"
+                 oninput="window.filterGames(this.value)"
+                 onkeydown="if(event.key==='Enter'){window.addGameManual();}"
+                 style="flex:1;min-width:0;background:var(--bg-terminal);
+                        border:1px solid var(--border-subtle);border-radius:6px;
+                        color:var(--fg-primary);font-size:11px;padding:8px 11px;
+                        font-family:var(--font-mono);outline:none">
+          <button class="btn-ghost" onclick="window.addGameManual()"
+                  style="font-size:10px;padding:7px 14px;flex-shrink:0">ADICIONAR</button>
+        </div>
+
+        <div id="game-list" class="scroll-list" style="max-height:190px;text-align:left">
+          <div style="padding:14px;color:var(--fg-muted);font-size:11px">
             Carregando processos...
           </div>
         </div>
-        <div class="mono" style="font-size:10px;color:var(--fg-muted);margin-top:8px"
-             data-bind="prio_status"></div>
+
+        <div class="mono" style="font-size:10px;color:var(--fg-muted);margin-top:8px;
+                    text-align:left" data-bind="prio_status"></div>
       </div>
 
       <div class="terminal" id="gamer-terminal" style="display:none;width:100%"></div>
