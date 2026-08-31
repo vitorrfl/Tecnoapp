@@ -173,7 +173,7 @@
         </div>
         <div class="body">categorias ativas</div>
         <button class="btn-primary" style="width:360px;margin-top:4px" onclick="window.bridge?.onStartClean?.()">INICIAR LIMPEZA</button>
-        <button class="btn-secondary" style="width:240px" onclick="window.bridge?.onConfigClean?.()">Configurar o que é limpo →</button>
+        <button class="btn-secondary" style="width:240px" onclick="navigate('limpeza-config')">Configurar o que é limpo →</button>
       </div>
 
       <div class="terminal" id="clean-terminal" style="display:none"></div>
@@ -182,6 +182,37 @@
     </section>
 
     <!-- ─── OTIMIZAÇÃO ─── -->
+    <!-- ─────────── LIMPEZA · CONFIGURAR ─────────── -->
+    <section id="screen-limpeza-config" class="screen">
+      <div class="row" style="gap:12px;align-items:center;margin-bottom:4px">
+        <button class="btn-ghost" onclick="navigate('limpeza')"
+                style="font-size:11px;padding:6px 14px">&larr; VOLTAR</button>
+        <div class="h1" style="margin:0">Configurar limpeza</div>
+      </div>
+      <div class="subtitle" style="margin-bottom:16px">
+        Escolha o que a limpeza rapida deve remover. A selecao fica salva
+        para as proximas vezes.
+      </div>
+
+      <div class="between" style="margin-bottom:12px">
+        <span class="mono" style="font-size:11px" data-bind="cfg_summary">&mdash;</span>
+        <div class="row" style="gap:8px">
+          <button class="btn-ghost" onclick="window.cleanSelect('default')" style="font-size:10px;padding:5px 12px">RECOMENDADOS</button>
+          <button class="btn-ghost" onclick="window.cleanSelect('all')"     style="font-size:10px;padding:5px 12px">TODOS</button>
+          <button class="btn-ghost" onclick="window.cleanSelect('none')"    style="font-size:10px;padding:5px 12px">NENHUM</button>
+        </div>
+      </div>
+
+      <div id="clean-config-list" class="card scroll-list" style="padding:4px 0">
+        <div style="padding:20px;text-align:center;color:var(--fg-muted);font-size:11px">Carregando...</div>
+      </div>
+
+      <div class="between" style="margin-top:16px">
+        <span class="mono" style="font-size:10px;color:var(--fg-muted)" data-bind="cfg_status"></span>
+        <button class="btn-primary" style="width:260px" onclick="window.cleanStart()">INICIAR LIMPEZA</button>
+      </div>
+    </section>
+
     <!-- ─────────── DEBLOAT ─────────── -->
     <section id="screen-debloat" class="screen">
       <div class="h1">Debloat</div>

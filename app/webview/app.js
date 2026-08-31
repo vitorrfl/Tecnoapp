@@ -405,6 +405,97 @@
     setBind('debloat_status', parts.join(' · '));
   }
 
+  // ── Limpeza ───────────────────────────────────────────────────
+  let cleanCats = [];
+  const cleanChecked = new Set();
+
+  function renderCleanConfig() {
+    const box = document.getElementById('clean-config-list');
+    if (!box) return;
+
+    if (!cleanCats.length) {
+      box.innerHTML = '<div style="padding:24px;text-align:center;color:var(--fg-muted);'
+        + 'font-size:11px">Nao foi possivel carregar as categorias.</div>';
+      return;
+    }
+
+    box.innerHTML = cleanCats.map((c, i) => {
+      const on = cleanChecked.has(c.id) ? 'checked' : '';
+      const warn = c.warning
+        ? `<span style="display:block;font-size:10px;color:#e8a33d;margin-top:3px">&#9888; ${c.warning}</span>`
+        : '';
+      return `
+        <label style="display:flex;gap:12px;align-items:flex-start;padding:11px 14px;
+                      border-bottom:1px solid var(--border-subtle);cursor:pointer">
+          <input type="checkbox" data-clean="${i}" ${on} style="margin-top:3px;flex-shrink:0">
+          <span style="flex:1;min-width:0">
+            <span style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap">
+              <span style="font-size:11px;color:var(--fg-primary);font-weight:600">${c.label}</span>
+              ${c.default ? '<span style="font-size:9px;color:var(--state-on);font-weight:700">RECOMENDADO</span>' : ''}
+            </span>
+            <span style="display:block;font-size:10px;color:var(--fg-muted);margin-top:2px;line-height:1.5">${c.desc || ''}</span>
+            ${warn}
+          </span>
+          <span class="mono" style="font-size:10px;color:var(--fg-secondary);flex-shrink:0;white-space:nowrap">${c.impact || ''}</span>
+        </label>`;
+    }).join('');
+
+    box.querySelectorAll('input[data-clean]').forEach(cb => {
+      cb.addEventListener('change', e => {
+        const c = cleanCats[parseInt(e.target.dataset.clean, 10)];
+        if (!c) return;
+        if (e.target.checked) cleanChecked.add(c.id); else cleanChecked.delete(c.id);
+        persistClean();
+        updateCleanCounts();
+      });
+    });
+    updateCleanCounts();
+  }
+
+  function updateCleanCounts() {
+    const n = cleanChecked.size, t = cleanCats.length;
+    setBind('clean_active', String(n));
+    setBind('clean_total', String(t));
+    setBind('cfg_summary', `${n} de ${t} categorias ativas`);
+  }
+
+  function persistClean() {
+    if (window.bridge && window.bridge.setCleanSelection) {
+      window.bridge.setCleanSelection(Array.from(cleanChecked));
+    }
+  }
+
+  function onCleanCategories(r) {
+    if (!r || !r.categories) return;
+    cleanCats = r.categories;
+    cleanChecked.clear();
+    cleanCats.forEach(c => { if (c.checked) cleanChecked.add(c.id); });
+    if (r.last_clean) setBind('clean_status', 'Ultima limpeza: ' + r.last_clean);
+    renderCleanConfig();
+  }
+
+  window.cleanSelect = function (mode) {
+    cleanChecked.clear();
+    if (mode === 'all')     cleanCats.forEach(c => cleanChecked.add(c.id));
+    if (mode === 'default') cleanCats.filter(c => c.default).forEach(c => cleanChecked.add(c.id));
+    persistClean();
+    renderCleanConfig();
+  };
+
+  window.cleanStart = function () {
+    if (!window.bridge) return;
+    if (!cleanChecked.size) {
+      setBind('cfg_status', 'Selecione ao menos uma categoria.');
+      return;
+    }
+    persistClean();
+    if (window.bridge.startCleanWith) {
+      window.bridge.startCleanWith(Array.from(cleanChecked));
+    } else if (window.bridge.onStartClean) {
+      window.bridge.onStartClean();
+    }
+  };
+
   // ── Conecta a bridge Qt ───────────────────────────────────────
   function connectBridge() {
     const b = window.bridge;
@@ -459,6 +550,8 @@
       };
       poll();
     }
+
+    if (b.getCleanCategories) b.getCleanCategories(onCleanCategories);
 
     if (b.getInitialSnapshot) b.getInitialSnapshot(applySnapshot);
     if (b.getHardware)        b.getHardware(applyHardware);

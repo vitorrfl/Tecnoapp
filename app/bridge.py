@@ -200,6 +200,64 @@ class Bridge(QObject):
         if self._main:
             self._main.close()
 
+    # ── Limpeza ─────────────────────────────────────────────────
+    @Slot(result="QVariant")
+    def getCleanCategories(self):
+        """
+        Categorias de limpeza + o que o usuario tem selecionado.
+
+        Importa de app3 sob demanda para evitar import circular
+        (app3 importa bridge via web_screen).
+        """
+        try:
+            from app3 import _CLEAN_CATEGORIES, _load_clean_state
+        except Exception:
+            return {"categories": [], "active": 0, "total": 0, "last_clean": ""}
+
+        state = _load_clean_state() or {}
+        saved = state.get("user_selections") or {}
+
+        cats = []
+        for c in _CLEAN_CATEGORIES:
+            cid = c["id"]
+            on = bool(saved[cid]) if cid in saved else bool(c.get("default"))
+            cats.append({
+                "id": cid,
+                "label": c.get("label", cid),
+                "desc": c.get("desc", ""),
+                "impact": c.get("impact", ""),
+                "warning": c.get("warning", ""),
+                "default": bool(c.get("default")),
+                "checked": on,
+            })
+
+        return {
+            "categories": cats,
+            "active": sum(1 for c in cats if c["checked"]),
+            "total": len(cats),
+            "last_clean": state.get("last_clean") or "",
+        }
+
+    @Slot("QVariant")
+    def setCleanSelection(self, ids):
+        """Persiste a selecao do usuario no estado do app."""
+        try:
+            from app3 import _CLEAN_CATEGORIES, _load_clean_state, _save_clean_state
+        except Exception:
+            return
+        wanted = {str(i) for i in (ids or [])}
+        state = _load_clean_state() or {}
+        state["user_selections"] = {c["id"]: (c["id"] in wanted) for c in _CLEAN_CATEGORIES}
+        _save_clean_state(state)
+
+    @Slot("QVariant")
+    def startCleanWith(self, ids):
+        """Inicia a limpeza com as categorias marcadas na tela web."""
+        if not self._main or not hasattr(self._main, "run_clean_process"):
+            return
+        selected = {str(i) for i in (ids or [])} or None
+        self._main.run_clean_process(selected)
+
     # ── Updater ─────────────────────────────────────────────────
     @Slot(result=str)
     def getVersion(self):
@@ -297,8 +355,12 @@ class Bridge(QObject):
 
     @Slot()
     def onConfigClean(self):
-        if self._main and hasattr(self._main, "show_limpeza"):
-            self._main.show_limpeza()
+        """
+        No-op: a configuracao agora e uma tela do proprio front web.
+        Abrir show_limpeza() renderizava a janela QWidgets legada por cima
+        do WebEngine, sem caminho de volta para o app.
+        """
+        return
 
     @Slot()
     def onGamerActivate(self):
