@@ -1,3 +1,0 @@
->> sinal: {"tipoCleanStep":"object","chavesDoSinal":["connect","disconnect"],"temConnect":true}
->> emitindo cleanStep
->> terminal: {"linhas":0,"display":"none"}

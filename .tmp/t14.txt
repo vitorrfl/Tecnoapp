@@ -1,4 +1,0 @@
->> chamando window.cleanRunQuick() pelo JS
->> chamado
->> TERMINAL: {"linhas":11,"texto":"> Temporários do usuário> Temporários do Windows> Prefetch do Windows> Cache DNS> Lixeira> Cache de miniaturas> Cache do Windows Update> Logs de event","display":"block"}
->> lado Python -> cleanStep: 18 | finished: {'human': '64 KB', 'ok': True, 'total': 65536}

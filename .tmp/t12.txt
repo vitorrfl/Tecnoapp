@@ -1,3 +1,0 @@
->> conectado no contexto do runJavaScript
->> emitindo
->> resultado: {"marcas":[],"linhas":0}

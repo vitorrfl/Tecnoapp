@@ -1,5 +1,0 @@
->> bridge: {"cleanStepExiste":true,"bloatProgressExiste":true,"chaves":["bloatScanned","bloatScanned(QVariant)","bloatProgress","bloatProgress(int,int,QString)","bloatFinished","bloatFinished(QVariant)","cleanStep","cleanStep(QString,int)","cleanCalculating","cleanCalculating()","cleanFinished","cleanFinished(QVariant)"]}
->> emitindo cleanStep x2 e bloatProgress x2
-
-=== RECEBIDOS NO JS ===
-{"cleanStep":0,"bloatProgress":0}

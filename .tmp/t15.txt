@@ -1,2 +1,0 @@
->> empurrando passos de reparo e otimizacao
->> RESULTADO: {"reparo":{"linhas":3,"texto":"> Verificando componentes - ok! Executando SFC - erro simulado> concluido"},"otimizacao":{"linhas":2,"texto":"> Plano de energia - aplicado> concluido - 2 aplicada(s)"}}

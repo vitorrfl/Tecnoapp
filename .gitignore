@@ -41,3 +41,6 @@ tecnosup_clean_log.txt
 /build/
 /dist/
 /installer_output/
+
+# Scripts de investigacao temporarios
+.tmp/

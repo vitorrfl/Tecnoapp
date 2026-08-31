@@ -1,4 +1,0 @@
->> chamando window.cleanRunQuick() pelo JS
->> chamado
->> TERMINAL: {"linhas":0,"texto":"","display":"block"}
->> lado Python -> cleanStep: 9 | finished: {'human': '8 KB', 'ok': True, 'total': 8192}

@@ -1,5 +1,0 @@
->> inspecao: {"bridgeDefinida":"object","temCleanStep":"object","connectEhFuncao":"function","handlers":"sem __handlers"}
->> emitindo 2 sinais
-
-=== recebidos apos assinar tardiamente ===
-{"novoHandler":0,"linhasTerminal":0}
