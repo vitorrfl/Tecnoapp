@@ -239,6 +239,35 @@
       : '<span style="color:#e8a33d;font-size:9px;font-weight:700">ATENCAO</span>';
   }
 
+  // Agrupa por fabricante: 5 itens Xbox soltos enchem a tela e forcam
+  // scroll desnecessario. Agrupado, cada bloco colapsa em uma linha.
+  function groupOf(it) {
+    const n = (it.name + ' ' + (it.publisher || '')).toLowerCase();
+    if (n.includes('xbox') || n.includes('gaming')) return 'Xbox / Games';
+    if (n.includes('dell'))    return 'Dell';
+    if (n.includes('lenovo'))  return 'Lenovo';
+    if (n.includes('hp '))     return 'HP';
+    if (n.includes('asus'))    return 'ASUS';
+    if (n.includes('acer'))    return 'Acer';
+    if (n.includes('microsoft') || n.includes('zune') || n.includes('bing')) return 'Apps do Windows';
+    return 'Outros';
+  }
+
+  const collapsed = new Set();
+
+  window.toggleGroup = function (name) {
+    if (collapsed.has(name)) collapsed.delete(name); else collapsed.add(name);
+    renderBloat();
+  };
+
+  window.toggleGroupCheck = function (ev, name) {
+    ev.stopPropagation();
+    const items = bloatItems.filter(i => groupOf(i) === name);
+    const allOn = items.every(i => bloatChecked.has(i.name));
+    items.forEach(i => allOn ? bloatChecked.delete(i.name) : bloatChecked.add(i.name));
+    renderBloat();
+  };
+
   function renderBloat() {
     const box = document.getElementById('debloat-list');
     if (!box) return;
@@ -249,23 +278,62 @@
       return;
     }
 
-    box.innerHTML = bloatItems.map((it, idx) => {
-      const size = it.size_mb > 0 ? it.size_mb + ' MB' : '—';
-      const on = bloatChecked.has(it.name) ? 'checked' : '';
-      return `
-        <label style="display:flex;gap:12px;align-items:flex-start;padding:9px 14px;
-                      border-bottom:1px solid var(--border-subtle);cursor:pointer">
-          <input type="checkbox" data-bloat="${idx}" ${on} style="margin-top:3px;flex-shrink:0">
-          <span style="flex:1;min-width:0">
-            <span style="display:flex;gap:8px;align-items:baseline">
-              <span style="font-size:11px;color:var(--fg-primary);font-weight:600;
-                           overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${it.name}</span>
-              ${riskLabel(it.risk)}
-            </span>
-            <span style="display:block;font-size:10px;color:var(--fg-muted);margin-top:2px">${it.why || ''}</span>
+    // Preserva a ordem de tamanho ja aplicada pelo scanner
+    const groups = [];
+    const byName = {};
+    bloatItems.forEach(it => {
+      const g = groupOf(it);
+      if (!byName[g]) { byName[g] = []; groups.push(g); }
+      byName[g].push(it);
+    });
+
+    box.innerHTML = groups.map(g => {
+      const items = byName[g];
+      const mb = items.reduce((a, i) => a + (i.size_mb || 0), 0);
+      const nOn = items.filter(i => bloatChecked.has(i.name)).length;
+      const isOpen = !collapsed.has(g);
+      const allOn = nOn === items.length;
+
+      const head = `
+        <div onclick="window.toggleGroup('${g}')"
+             style="display:flex;gap:10px;align-items:center;padding:9px 14px;cursor:pointer;
+                    background:rgba(255,255,255,.02);border-bottom:1px solid var(--border-subtle);
+                    position:sticky;top:0;z-index:2;backdrop-filter:blur(6px)">
+          <input type="checkbox" ${allOn ? 'checked' : ''}
+                 onclick="window.toggleGroupCheck(event, '${g}')"
+                 style="flex-shrink:0;cursor:pointer">
+          <span style="flex:1;font-size:11px;font-weight:700;color:var(--fg-primary)">
+            ${g}
+            <span style="font-weight:400;color:var(--fg-muted)">· ${items.length}${mb > 0 ? ' · ' + mb + ' MB' : ''}</span>
           </span>
-          <span class="mono" style="font-size:10px;color:var(--fg-secondary);flex-shrink:0">${size}</span>
-        </label>`;
+          ${nOn ? `<span style="font-size:9px;color:var(--cyan);font-weight:700">${nOn} SEL.</span>` : ''}
+          <span style="font-size:10px;color:var(--fg-muted);transition:transform .15s;
+                       transform:rotate(${isOpen ? 90 : 0}deg);display:inline-block">&#9656;</span>
+        </div>`;
+
+      if (!isOpen) return head;
+
+      const rows = items.map(it => {
+        const idx = bloatItems.indexOf(it);
+        const size = it.size_mb > 0 ? it.size_mb + ' MB' : '&mdash;';
+        const on = bloatChecked.has(it.name) ? 'checked' : '';
+        return `
+          <label style="display:flex;gap:12px;align-items:flex-start;padding:9px 14px 9px 30px;
+                        border-bottom:1px solid var(--border-subtle);cursor:pointer">
+            <input type="checkbox" data-bloat="${idx}" ${on} style="margin-top:3px;flex-shrink:0">
+            <span style="flex:1;min-width:0">
+              <span style="display:flex;gap:8px;align-items:baseline">
+                <span style="font-size:11px;color:var(--fg-primary);font-weight:600;
+                             overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${it.name}</span>
+                ${riskLabel(it.risk)}
+              </span>
+              <span style="display:block;font-size:10px;color:var(--fg-muted);margin-top:2px">${it.why || ''}</span>
+            </span>
+            <span class="mono" style="font-size:10px;color:var(--fg-secondary);flex-shrink:0">${size}</span>
+          </label>`;
+      }).join('');
+
+      return head + rows;
     }).join('');
 
     box.querySelectorAll('input[data-bloat]').forEach(cb => {

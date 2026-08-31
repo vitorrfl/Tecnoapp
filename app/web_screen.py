@@ -39,7 +39,9 @@ class WebScreen(QWebEngineView):
         s.setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)
         s.setAttribute(QWebEngineSettings.LocalContentCanAccessFileUrls, True)
         s.setAttribute(QWebEngineSettings.AllowRunningInsecureContent, True)
-        s.setAttribute(QWebEngineSettings.ShowScrollBars, False)
+        # Scrollbars visiveis: o CSS as estiliza (::-webkit-scrollbar) e
+        # sem elas listas longas rolam as cegas, sem indicador de posicao.
+        s.setAttribute(QWebEngineSettings.ShowScrollBars, True)
 
         # Bridge: registra o objeto que o JS acessa via window.bridge
         self.bridge = Bridge(main_window=main_window, parent=self)

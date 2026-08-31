@@ -46,9 +46,29 @@ html, body {
 .screen.active { display: flex; }
 
 /* ─── Scrollbar ──────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #111; border-radius: 3px; }
-::-webkit-scrollbar-thumb { background: var(--cyan); border-radius: 3px; }
+/* Scrollbar: 6px era fino demais para acertar com o mouse. 10px ainda
+   e discreto e vira alvo clicavel de verdade. */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: rgba(255,255,255,.03); border-radius: 5px; }
+::-webkit-scrollbar-thumb {
+  background: rgba(14,179,255,.45);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--cyan); background-clip: content-box; }
+::-webkit-scrollbar-corner { background: transparent; }
+
+/* Lista rolavel: altura maior, borda que indica onde a area termina e
+   sombra sutil no topo/base sinalizando que ha mais conteudo. */
+.scroll-list {
+  max-height: min(52vh, 460px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.scroll-list > label:last-child { border-bottom: none !important; }
+.scroll-list > label:hover { background: rgba(14,179,255,.05); }
 
 /* ──────────────────────────────────────────────────────────────
    SIDEBAR
