@@ -6,10 +6,39 @@
 (function () {
   'use strict';
 
+  // -- Modal de reboot ------------------------------------------
+  window.onAskReboot = function (tweaks) {
+    const lista = (tweaks && tweaks.length)
+      ? '\n\nTweaks que dependem do reboot:\n   - ' + tweaks.join('\n   - ')
+      : '';
+    tecConfirm({
+      title: 'Reiniciar para aplicar tudo?',
+      body: 'Alguns tweaks so entram em efeito depois de reiniciar.\n'
+          + 'Os tweaks ja estao salvos e sobrevivem ao reboot.'
+          + lista
+          + '\n\nSe reiniciar agora, o TecnoApp abre sozinho no Modo Gamer.',
+      yes: 'REINICIAR AGORA',
+      no: 'DEPOIS'
+    }, function () {
+      if (window.bridge && window.bridge.rebootNow) window.bridge.rebootNow();
+    }, function () {
+      if (window.bridge && window.bridge.cancelReboot) window.bridge.cancelReboot();
+    });
+  };
+
+  window.onRebootFailed = function () {
+    tecConfirm({
+      title: 'Nao foi possivel reiniciar',
+      body: 'Reinicie o computador manualmente quando for conveniente. '
+          + 'Os tweaks ja estao salvos.',
+      yes: 'ENTENDI'
+    });
+  };
+
   // -- Modal de confirmacao ------------------------------------
   // Substitui confirm(): o dialogo nativo mostra "Javascript Confirm" e o
   // caminho do arquivo, quebrando a identidade visual do app.
-  function tecConfirm(opts, onYes) {
+  function tecConfirm(opts, onYes, onNo) {
     const box = document.getElementById('tec-modal');
     if (!box) { if (onYes) onYes(); return; }
 
@@ -19,6 +48,7 @@
     const yes = document.getElementById('tec-modal-yes');
     const no = document.getElementById('tec-modal-no');
     yes.textContent = o.yes || 'CONFIRMAR';
+    no.textContent = o.no || 'CANCELAR';
 
     const accent = document.getElementById('tec-modal-accent');
     if (accent) accent.style.background = o.danger ? '#e8a33d' : 'var(--cyan)';
@@ -40,7 +70,7 @@
     }
 
     yes.onclick = function () { fechar(); if (onYes) onYes(); };
-    no.onclick = fechar;
+    no.onclick = function () { fechar(); if (onNo) onNo(); };
     document.addEventListener('keydown', tecla);
   }
   window.tecConfirm = tecConfirm;
@@ -1058,6 +1088,17 @@
   // ── Init ───────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
     navigate('home');
+
+    // Reaberto pelo RunOnce apos o reboot: vai direto ao Modo Gamer,
+    // que foi o motivo de reiniciar.
+    if (window.bridge && window.bridge.getPostRebootFlag) {
+      window.bridge.getPostRebootFlag(function (flag) {
+        if (flag === 'gamer') {
+          navigate('gamer');
+          setBind('gamer_status', 'PC reiniciado — tweaks de reboot agora ativos.');
+        }
+      });
+    }
     animateProgressBars();
 
     // A bridge pode nao estar pronta no DOMContentLoaded (o callback do

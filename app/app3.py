@@ -3312,14 +3312,29 @@ class TecnoApp(QMainWindow):
             if active and report.applied:
                 web.page().runJavaScript("document.getElementById('gamer-terminal').style.display='block';")
                 web.page().runJavaScript("window.clearTerminal();")
-                for tw in report.applied:
-                    label = getattr(tw, 'label', str(tw))
-                    label_esc = label.replace("'", "\\'")
-                    web.page().runJavaScript(f"window.appendTerminalLine('✓ {label_esc}', 'success');")
-                for tw in (report.failed or []):
-                    label = getattr(tw, 'label', str(tw))
-                    label_esc = label.replace("'", "\\'")
-                    web.page().runJavaScript(f"window.appendTerminalLine('✗ {label_esc}', 'warn');")
+                # report.applied traz TweakResult, que nao tem .label — o
+                # getattr caia no str() e imprimia o repr inteiro do objeto.
+                # O rotulo legivel esta no tweak registrado no engine.
+                def _rotulo(r):
+                    tw = self.gamer_engine._tweaks.get(getattr(r, "tweak_id", ""))
+                    if tw is not None:
+                        return getattr(tw, "label", None) or getattr(r, "tweak_id", "?")
+                    return getattr(r, "tweak_id", "?")
+
+                for r in report.applied:
+                    txt = _rotulo(r)
+                    msg = getattr(r, "message", "")
+                    if msg:
+                        txt = f"{txt} — {msg}"
+                    web.page().runJavaScript(
+                        "window.appendTerminalLine(" + json.dumps("✓ " + txt) + ", 'success');")
+                for r in (report.failed or []):
+                    txt = _rotulo(r)
+                    err = getattr(r, "error", None) or getattr(r, "message", "")
+                    if err:
+                        txt = f"{txt} — {err}"
+                    web.page().runJavaScript(
+                        "window.appendTerminalLine(" + json.dumps("✗ " + txt) + ", 'warn');")
         else:
             self.show_gamer()
 
@@ -3327,23 +3342,21 @@ class TecnoApp(QMainWindow):
             self.show_reboot_modal(report)
 
     def show_reboot_modal(self, report):
-        reboot_tweaks = [r.tweak_id for r in report.applied
-                         if self.gamer_engine._tweaks.get(r.tweak_id) and self.gamer_engine._tweaks[r.tweak_id].requires_reboot]
-        m = QMessageBox(self)
-        m.setWindowTitle("Reinicialização recomendada")
-        m.setText("Alguns tweaks exigem reboot para entrar em efeito.")
-        m.setInformativeText(
-            "Para ter ganho completo, reinicie o PC quando for conveniente.\n"
-            "Os tweaks já estão salvos e sobrevivem ao reboot.\n\n"
-            f"Tweaks afetados:\n• " + "\n• ".join(reboot_tweaks)
-        )
-        m.setStandardButtons(QMessageBox.Ok)
-        m.setStyleSheet(
-            "QLabel{color:white; font-family:'Segoe UI';} "
-            "QMessageBox{background:#030407; border:1px solid #0eb3ff;} "
-            "QPushButton{color:white; border:1px solid #0eb3ff; padding:5px; min-width:80px;}"
-        )
-        m.exec()
+        """
+        Pede o reboot pelo modal do proprio app.
+
+        O QMessageBox nativo abria uma janela do Windows por cima do
+        WebEngine — mesma quebra visual das outras janelas ja eliminadas.
+        """
+        reboot_tweaks = []
+        for r in report.applied:
+            tw = self.gamer_engine._tweaks.get(r.tweak_id)
+            if tw and tw.requires_reboot:
+                reboot_tweaks.append(getattr(tw, "label", None) or r.tweak_id)
+
+        web = getattr(self, "_web_view", None)
+        if web is not None and hasattr(web, "bridge"):
+            web.bridge.ask_reboot(reboot_tweaks)
     def criar_ponto_restauracao(self):
         """Aciona o serviço de pontos de restauração do Windows e cria
         um snapshot rotulado pelo TecnoApp. É a mesma operação que o

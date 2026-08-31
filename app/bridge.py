@@ -585,6 +585,55 @@ class Bridge(QObject):
     def onGamerDeactivate(self):
         self.runGamerDeactivate()
 
+    # ── Reboot ──────────────────────────────────────────────────
+    @Slot(result=str)
+    def getPostRebootFlag(self):
+        """
+        'gamer' quando o app foi reaberto pelo RunOnce apos o reboot.
+
+        O front usa isso para abrir direto no Modo Gamer em vez da Home.
+        """
+        try:
+            from reboot import came_from_reboot
+            return came_from_reboot() or ""
+        except Exception:
+            return ""
+
+
+    def ask_reboot(self, tweaks):
+        """Abre o modal de reboot no front, com os tweaks afetados."""
+        self._js("onAskReboot", [str(t) for t in (tweaks or [])])
+
+    @Slot()
+    def rebootNow(self):
+        """
+        Reinicia — so a partir do clique do usuario no modal.
+
+        O README proibe auto-reboot: a decisao e sempre dele. Agenda o
+        retorno antes, para o app reabrir no Modo Gamer.
+        """
+        try:
+            from reboot import schedule_return, reboot_now
+        except Exception:
+            return
+        schedule_return("gamer")
+        if not reboot_now(5):
+            try:
+                from reboot import cancel_return
+                cancel_return()
+            except Exception:
+                pass
+            self._js("onRebootFailed")
+
+    @Slot()
+    def cancelReboot(self):
+        """Desfaz o agendamento se o usuario escolher reiniciar depois."""
+        try:
+            from reboot import cancel_return
+            cancel_return()
+        except Exception:
+            pass
+
     # ── Limpeza profunda (cleanmgr) ─────────────────────────────
     @Slot(result="QVariant")
     def getDeepCleanCategories(self):
