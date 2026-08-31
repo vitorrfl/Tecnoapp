@@ -33,6 +33,29 @@
 </div>
 
 
+<!-- Modal de confirmacao (substitui o confirm() nativo do navegador) -->
+<div id="tec-modal" style="display:none;position:fixed;inset:0;z-index:10000;
+     background:rgba(3,4,7,.78);align-items:center;justify-content:center;padding:24px">
+  <div style="background:var(--bg-card);border:1px solid var(--border-subtle);
+              border-radius:10px;max-width:540px;width:100%;
+              box-shadow:0 18px 50px rgba(0,0,0,.6);overflow:hidden">
+    <div id="tec-modal-accent" style="height:3px;background:var(--cyan)"></div>
+    <div style="padding:22px 24px 18px">
+      <div id="tec-modal-title" style="font-size:15px;font-weight:700;
+           color:var(--fg-primary);margin-bottom:10px">Confirmar</div>
+      <div id="tec-modal-body" style="font-size:12px;line-height:1.65;
+           color:var(--fg-secondary);white-space:pre-wrap;
+           max-height:46vh;overflow-y:auto"></div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;padding:0 24px 20px">
+      <button id="tec-modal-no" class="btn-ghost"
+              style="min-width:110px;padding:9px 18px;font-size:11px">CANCELAR</button>
+      <button id="tec-modal-yes" class="btn-primary"
+              style="min-width:150px;padding:9px 18px;font-size:11px">CONFIRMAR</button>
+    </div>
+  </div>
+</div>
+
 <div class="app">
 
   <!-- ─────────── SIDEBAR ─────────── -->

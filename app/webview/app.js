@@ -6,6 +6,46 @@
 (function () {
   'use strict';
 
+  // -- Modal de confirmacao ------------------------------------
+  // Substitui confirm(): o dialogo nativo mostra "Javascript Confirm" e o
+  // caminho do arquivo, quebrando a identidade visual do app.
+  function tecConfirm(opts, onYes) {
+    const box = document.getElementById('tec-modal');
+    if (!box) { if (onYes) onYes(); return; }
+
+    const o = (typeof opts === 'string') ? { body: opts } : (opts || {});
+    document.getElementById('tec-modal-title').textContent = o.title || 'Confirmar';
+    document.getElementById('tec-modal-body').textContent = o.body || '';
+    const yes = document.getElementById('tec-modal-yes');
+    const no = document.getElementById('tec-modal-no');
+    yes.textContent = o.yes || 'CONFIRMAR';
+
+    const accent = document.getElementById('tec-modal-accent');
+    if (accent) accent.style.background = o.danger ? '#e8a33d' : 'var(--cyan)';
+    yes.style.background = o.danger ? '#e8a33d' : '';
+    yes.style.color = o.danger ? '#0a0a12' : '';
+
+    box.style.display = 'flex';
+    yes.focus();
+
+    function fechar() {
+      box.style.display = 'none';
+      yes.onclick = null;
+      no.onclick = null;
+      document.removeEventListener('keydown', tecla);
+    }
+    function tecla(e) {
+      if (e.key === 'Escape') { fechar(); }
+      else if (e.key === 'Enter') { fechar(); if (onYes) onYes(); }
+    }
+
+    yes.onclick = function () { fechar(); if (onYes) onYes(); };
+    no.onclick = fechar;
+    document.addEventListener('keydown', tecla);
+  }
+  window.tecConfirm = tecConfirm;
+
+
   // ── Navegação entre telas ──────────────────────────────────────
   function navigate(screenId) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -386,11 +426,17 @@
     const msg = 'Remover ' + n + (n === 1 ? ' programa' : ' programas') + '?'
       + '\n\nUm ponto de restauracao sera criado antes.'
       + '\nDesinstalar nao pode ser desfeito pelo app.';
-    if (!confirm(msg)) return;
-
-    const btn = document.getElementById('debloat-btn');
-    if (btn) { btn.disabled = true; btn.style.opacity = '.4'; }
-    window.bridge.removeBloatware(Array.from(bloatChecked));
+    tecConfirm({
+      title: 'Remover ' + n + (n === 1 ? ' programa' : ' programas') + '?',
+      body: 'Um ponto de restauracao sera criado antes.\n'
+          + 'Desinstalar nao pode ser desfeito pelo app.',
+      yes: 'REMOVER',
+      danger: true
+    }, function () {
+      const btn = document.getElementById('debloat-btn');
+      if (btn) { btn.disabled = true; btn.style.opacity = '.4'; }
+      window.bridge.removeBloatware(Array.from(bloatChecked));
+    });
   };
 
   function onBloatProgress(cur, total, name) {
@@ -588,22 +634,27 @@
     const tool = repairTools.find(function (t) { return t.id === toolId; });
     const label = tool ? tool.label : toolId;
 
-    let msg = 'Executar: ' + label + '?';
+    let msg = '';
     if (tool) {
-      if (tool.duration) msg += '\n\nDuracao estimada: ' + tool.duration;
-      if (tool.warning)  msg += '\n\nAtencao: ' + tool.warning;
-      if (tool.reboot)   msg += '\n\nEste reparo exige reiniciar o computador depois.';
+      if (tool.duration) msg += 'Duracao estimada: ' + tool.duration + '\n\n';
+      if (tool.warning)  msg += tool.warning + '\n\n';
+      if (tool.reboot)   msg += 'Este reparo exige reiniciar o computador depois.';
     }
-    if (!confirm(msg)) return;
-
-    repairBusy = true;
-    document.querySelectorAll('#screen-reparos .btn-apply').forEach(function (b) {
-      b.disabled = true; b.style.opacity = '.5'; b.style.cursor = 'not-allowed';
+    tecConfirm({
+      title: label,
+      body: msg.trim(),
+      yes: 'EXECUTAR',
+      danger: !!(tool && (tool.reboot || tool.warning))
+    }, function () {
+      repairBusy = true;
+      document.querySelectorAll('#screen-reparos .btn-apply').forEach(function (b) {
+        b.disabled = true; b.style.opacity = '.5'; b.style.cursor = 'not-allowed';
+      });
+      termClear('repair-terminal');
+      termLine('repair-terminal', '> iniciando: ' + label);
+      setBind('repair_status', 'Reparo em andamento...');
+      window.bridge.onRunRepair(toolId);
     });
-    termClear('repair-terminal');
-    termLine('repair-terminal', '> iniciando: ' + label);
-    setBind('repair_status', 'Reparo em andamento...');
-    window.bridge.onRunRepair(toolId);
   };
 
   function onRepairStep(label, ok, detail) {
@@ -806,19 +857,25 @@
     const perigosos = deepCats.filter(function (c) {
       return deepChecked.has(c.id) && c.warning;
     });
-    let msg = 'Iniciar a limpeza profunda com ' + deepChecked.size + ' categorias?';
+    let msg = '';
     if (perigosos.length) {
-      msg += '\n\nATENCAO - itens sem volta selecionados:';
-      perigosos.forEach(function (c) { msg += '\n  - ' + c.label; });
+      msg += 'Itens sem volta selecionados:\n';
+      perigosos.forEach(function (c) { msg += '   - ' + c.label + '\n'; });
+      msg += '\n';
     }
-    msg += '\n\nPode levar varios minutos sem mostrar progresso detalhado.';
-    if (!confirm(msg)) return;
-
-    const btn = document.getElementById('deep-btn');
-    if (btn) { btn.disabled = true; btn.style.opacity = '.5'; btn.textContent = 'LIMPANDO...'; }
-    termClear('deep-terminal');
-    termLine('deep-terminal', '> iniciando limpeza profunda...');
-    window.bridge.startDeepClean(Array.from(deepChecked));
+    msg += 'Pode levar varios minutos sem mostrar progresso detalhado.';
+    tecConfirm({
+      title: 'Iniciar limpeza profunda com ' + deepChecked.size + ' categorias?',
+      body: msg,
+      yes: 'INICIAR LIMPEZA',
+      danger: perigosos.length > 0
+    }, function () {
+      const btn = document.getElementById('deep-btn');
+      if (btn) { btn.disabled = true; btn.style.opacity = '.5'; btn.textContent = 'LIMPANDO...'; }
+      termClear('deep-terminal');
+      termLine('deep-terminal', '> iniciando limpeza profunda...');
+      window.bridge.startDeepClean(Array.from(deepChecked));
+    });
   };
 
   function onDeepStep(label) {
