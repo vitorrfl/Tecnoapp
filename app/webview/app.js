@@ -489,11 +489,74 @@
       return;
     }
     persistClean();
-    if (window.bridge.startCleanWith) {
-      window.bridge.startCleanWith(Array.from(cleanChecked));
-    } else if (window.bridge.onStartClean) {
-      window.bridge.onStartClean();
+    window.cleanRunQuick();
+  };
+
+  // ── Progresso da limpeza (inline, sem janela separada) ────────
+  function cleanTerminal() {
+    return document.getElementById('clean-terminal');
+  }
+
+  function cleanSetRunning(on) {
+    document.querySelectorAll('#screen-limpeza .btn-primary, #screen-limpeza .btn-secondary,'
+      + ' #screen-limpeza-config .btn-primary').forEach(b => {
+      b.disabled = on;
+      b.style.opacity = on ? '.5' : '1';
+      b.style.cursor = on ? 'not-allowed' : 'pointer';
+    });
+  }
+
+  function onCleanStep(label, freed) {
+    const t = cleanTerminal();
+    if (!t) return;
+    t.style.display = 'block';
+    const mb = freed > 0 ? ' — ' + (freed / (1024 * 1024)).toFixed(1) + ' MB' : '';
+    const line = document.createElement('div');
+    line.className = 'terminal-line';
+    line.textContent = '> ' + label + mb;
+    t.appendChild(line);
+    t.scrollTop = t.scrollHeight;
+  }
+
+  function onCleanCalculating() {
+    const t = cleanTerminal();
+    if (!t) return;
+    t.style.display = 'block';
+    const line = document.createElement('div');
+    line.className = 'terminal-line';
+    line.textContent = '> calculando espaco liberado...';
+    t.appendChild(line);
+    t.scrollTop = t.scrollHeight;
+  }
+
+  function onCleanFinished(r) {
+    cleanSetRunning(false);
+    const t = cleanTerminal();
+    if (t) {
+      const line = document.createElement('div');
+      line.className = 'terminal-line';
+      line.style.color = 'var(--state-on)';
+      line.textContent = r && r.ok
+        ? '> concluido — ' + (r.human || '0 B') + ' liberados'
+        : '> falha na limpeza';
+      t.appendChild(line);
+      t.scrollTop = t.scrollHeight;
     }
+    if (r && r.ok) {
+      setBind('clean_status', 'Ultima limpeza: agora — ' + (r.human || '') + ' liberados');
+    }
+    // Volta para a tela de limpeza se o usuario estava na configuracao
+    const cfg = document.getElementById('screen-limpeza-config');
+    if (cfg && cfg.classList.contains('active')) navigate('limpeza');
+  }
+
+  window.cleanRunQuick = function () {
+    if (!window.bridge || !window.bridge.startCleanWith) return;
+    const t = cleanTerminal();
+    if (t) { t.innerHTML = ''; t.style.display = 'block'; }
+    cleanSetRunning(true);
+    navigate('limpeza');
+    window.bridge.startCleanWith(Array.from(cleanChecked));
   };
 
   // ── Conecta a bridge Qt ───────────────────────────────────────
@@ -550,6 +613,10 @@
       };
       poll();
     }
+
+    if (b.cleanStep && b.cleanStep.connect)               b.cleanStep.connect(onCleanStep);
+    if (b.cleanCalculating && b.cleanCalculating.connect) b.cleanCalculating.connect(onCleanCalculating);
+    if (b.cleanFinished && b.cleanFinished.connect)       b.cleanFinished.connect(onCleanFinished);
 
     if (b.getCleanCategories) b.getCleanCategories(onCleanCategories);
 

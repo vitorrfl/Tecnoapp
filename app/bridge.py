@@ -41,6 +41,10 @@ class Bridge(QObject):
     bloatScanned = Signal("QVariant")
     bloatProgress = Signal(int, int, str)
     bloatFinished = Signal("QVariant")
+    cleanStep = Signal(str, "QVariant")
+    cleanCalculating = Signal()
+    cleanFinished = Signal("QVariant")
+    repairStatus = Signal(str)
 
     def __init__(self, main_window=None, parent=None):
         super().__init__(parent)
@@ -57,6 +61,8 @@ class Bridge(QObject):
         self._checker = None
         self._downloader = None
 
+        self._clean_worker = None
+        self._clean_total = 0
         self._bloat: dict | None = None
         self._bloat_scanner = None
         self._bloat_remover = None
@@ -154,31 +160,29 @@ class Bridge(QObject):
 
     @Slot(str)
     def navigate(self, target: str):
-        """JS pode pedir ao Python pra trocar de tela (caso queiramos
-        rotear telas ainda em QWidgets)."""
-        if not self._main:
-            return
-        m = self._main
-        action = {
-            "home":       getattr(m, "show_home", None),
-            "limpeza":    getattr(m, "show_limpeza", None),
-            "otimizacao": getattr(m, "show_otimizacao", None),
-            "reparos":    getattr(m, "show_reparos", None),
-            "specs":      getattr(m, "show_specs", None),
-            "gamer":      getattr(m, "show_gamer", None),
-        }.get(target)
-        if action:
-            action()
+        """
+        No-op: a navegacao e do front web.
+
+        Rotear para as telas QWidgets legadas (show_home, show_limpeza,
+        show_reparos...) as renderizava por cima do WebEngine, sem caminho
+        de volta — a "janela solo". Mantido como slot para nao quebrar
+        chamadas antigas do JS.
+        """
+        return
 
     @Slot()
     def runLimpeza(self):
-        if self._main and hasattr(self._main, "run_clean_process"):
-            self._main.run_clean_process()
+        """Alias legado: usa o fluxo inline, sem tela Qt."""
+        self.startCleanWith([])
 
     @Slot()
     def runOtimizacao(self):
-        if self._main and hasattr(self._main, "run_optimize_process"):
-            self._main.run_optimize_process()
+        """
+        run_optimize_process() renderiza a tela QWidgets legada por cima
+        do WebEngine. Nao chamado ate existir fluxo inline no front.
+        """
+        self.repairStatus.emit(
+            "Otimizacao ainda nao disponivel nesta versao da interface.")
 
     @Slot()
     def runGamerActivate(self):
@@ -252,11 +256,75 @@ class Bridge(QObject):
 
     @Slot("QVariant")
     def startCleanWith(self, ids):
-        """Inicia a limpeza com as categorias marcadas na tela web."""
-        if not self._main or not hasattr(self._main, "run_clean_process"):
+        """
+        Inicia a limpeza reportando progresso por sinal.
+
+        Roda o CleanWorker aqui em vez de chamar MainWindow.run_clean_process:
+        aquele metodo faz clear_screen() e monta QWidgets por cima do
+        WebEngine, que e a "janela solo" sem caminho de volta.
+        """
+        if self._clean_worker is not None and self._clean_worker.isRunning():
             return
-        selected = {str(i) for i in (ids or [])} or None
-        self._main.run_clean_process(selected)
+        try:
+            from app3 import CleanWorker, _CLEAN_CATEGORIES, _load_clean_state, _save_clean_state
+        except Exception as e:
+            self.cleanFinished.emit({"ok": False, "error": f"{type(e).__name__}"})
+            return
+
+        selected = {str(i) for i in (ids or [])}
+        if not selected:
+            state = _load_clean_state() or {}
+            saved = state.get("user_selections") or {}
+            selected = ({cid for cid, v in saved.items() if v} if saved
+                        else {c["id"] for c in _CLEAN_CATEGORIES if c.get("default")})
+
+        self._clean_total = 0
+        self._clean_worker = CleanWorker(selected)
+        self._clean_worker.step_done.connect(self._on_clean_step)
+        self._clean_worker.calculating.connect(self.cleanCalculating.emit)
+        self._clean_worker.finished.connect(self._on_clean_finished)
+        self._clean_worker.start()
+
+    def _on_clean_step(self, label: str, freed: int):
+        self._clean_total += int(freed or 0)
+        self.cleanStep.emit(str(label), int(freed or 0))
+
+    def _on_clean_finished(self, total: int):
+        total = int(total or 0)
+        try:
+            from app3 import _load_clean_state, _save_clean_state, _save_module_status
+            msg = (f"✓  {self._fmt_size(total)} liberados" if total > 102_400
+                   else "✓  Sistema ja estava limpo")
+            _save_module_status("clean", msg)
+            state = _load_clean_state() or {}
+            from datetime import datetime
+            state["last_clean"] = datetime.now().strftime("%d/%m/%Y as %H:%M")
+            _save_clean_state(state)
+        except Exception:
+            pass
+
+        w = self._clean_worker
+        self._clean_worker = None
+        if w is not None:
+            try:
+                w.wait(); w.deleteLater()
+            except Exception:
+                pass
+
+        self.cleanFinished.emit({
+            "ok": True,
+            "total": total,
+            "human": self._fmt_size(total),
+        })
+
+    @staticmethod
+    def _fmt_size(b: int) -> str:
+        b = float(b or 0)
+        for unit in ("B", "KB", "MB", "GB"):
+            if b < 1024 or unit == "GB":
+                return f"{b:.2f} {unit}" if unit in ("MB", "GB") else f"{int(b)} {unit}"
+            b /= 1024
+        return f"{b:.2f} GB"
 
     # ── Updater ─────────────────────────────────────────────────
     @Slot(result=str)
@@ -351,7 +419,8 @@ class Bridge(QObject):
     # ── Aliases com nomes usados pelo app.js novo ───────────────
     @Slot()
     def onStartClean(self):
-        self.runLimpeza()
+        """Limpeza rapida: usa a selecao salva, sem renderizar tela Qt."""
+        self.startCleanWith([])
 
     @Slot()
     def onConfigClean(self):
@@ -372,8 +441,15 @@ class Bridge(QObject):
 
     @Slot(str)
     def onRunRepair(self, tool_id: str):
-        if self._main and hasattr(self._main, "show_reparos_progresso"):
-            self._main.show_reparos_progresso(tool_id)
+        """
+        Reparos ainda nao tem fluxo inline no front.
+
+        show_reparos_progresso() monta QWidgets por cima do WebEngine
+        (mesma "janela solo" da limpeza), entao nao e chamado. Reporta o
+        estado para o front em vez de abrir a tela legada.
+        """
+        self.repairStatus.emit(
+            "Reparos ainda nao disponivel nesta versao da interface.")
 
     @Slot(str, bool)
     def onToggle(self, toggle_id: str, checked: bool):
