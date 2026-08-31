@@ -368,7 +368,29 @@
     if (b.bloatFinished && b.bloatFinished.connect) {
       b.bloatFinished.connect(onBloatFinished);
     }
-    if (b.getBloatware) b.getBloatware(onBloatScanned);
+    // O scan comeca quando a Bridge nasce, antes de a pagina carregar.
+    // Se ele terminou nesse meio tempo o sinal ja passou, entao buscamos
+    // o resultado; se ainda estiver rodando, o sinal acima cobre. O
+    // polling e a rede de seguranca para os dois casos.
+    if (b.getBloatware) {
+      let tries = 0;
+      const poll = () => {
+        b.getBloatware(r => {
+          if (r && r.items) {
+            onBloatScanned(r);
+          } else if (++tries < 40) {
+            setTimeout(poll, 400);
+          } else {
+            setBind('debloat_summary', 'Nao foi possivel analisar o sistema.');
+            const box = document.getElementById('debloat-list');
+            if (box) box.innerHTML = '<div style="padding:24px;text-align:center;'
+              + 'color:var(--fg-muted);font-size:11px">Falha ao analisar. '
+              + 'Reabra o app para tentar de novo.</div>';
+          }
+        });
+      };
+      poll();
+    }
 
     if (b.getInitialSnapshot) b.getInitialSnapshot(applySnapshot);
     if (b.getHardware)        b.getHardware(applyHardware);
