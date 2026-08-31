@@ -559,6 +559,172 @@
     window.bridge.startCleanWith(Array.from(cleanChecked));
   };
 
+  // -- Terminal generico inline --------------------------------
+  function termLine(id, text, color) {
+    const t = document.getElementById(id);
+    if (!t) return;
+    t.style.display = 'block';
+    const d = document.createElement('div');
+    d.className = 'terminal-line';
+    if (color) d.style.color = color;
+    d.textContent = text;
+    t.appendChild(d);
+    t.scrollTop = t.scrollHeight;
+  }
+
+  function termClear(id) {
+    const t = document.getElementById(id);
+    if (t) { t.innerHTML = ''; t.style.display = 'block'; }
+  }
+
+  // -- Reparos --------------------------------------------------
+  let repairTools = [];
+  let repairBusy = false;
+
+  function onRepairTools(list) { repairTools = list || []; }
+
+  window.runRepair = function (toolId) {
+    if (!window.bridge || !window.bridge.onRunRepair || repairBusy) return;
+    const tool = repairTools.find(function (t) { return t.id === toolId; });
+    const label = tool ? tool.label : toolId;
+
+    let msg = 'Executar: ' + label + '?';
+    if (tool) {
+      if (tool.duration) msg += '\n\nDuracao estimada: ' + tool.duration;
+      if (tool.warning)  msg += '\n\nAtencao: ' + tool.warning;
+      if (tool.reboot)   msg += '\n\nEste reparo exige reiniciar o computador depois.';
+    }
+    if (!confirm(msg)) return;
+
+    repairBusy = true;
+    document.querySelectorAll('#screen-reparos .btn-apply').forEach(function (b) {
+      b.disabled = true; b.style.opacity = '.5'; b.style.cursor = 'not-allowed';
+    });
+    termClear('repair-terminal');
+    termLine('repair-terminal', '> iniciando: ' + label);
+    setBind('repair_status', 'Reparo em andamento...');
+    window.bridge.onRunRepair(toolId);
+  };
+
+  function onRepairStep(label, ok, detail) {
+    termLine('repair-terminal', (ok ? '> ' : '! ') + label + (detail ? ' - ' + detail : ''),
+             ok ? null : '#e8a33d');
+  }
+
+  function onRepairFinished(r) {
+    repairBusy = false;
+    document.querySelectorAll('#screen-reparos .btn-apply').forEach(function (b) {
+      b.disabled = false; b.style.opacity = '1'; b.style.cursor = 'pointer';
+    });
+    const ok = r && r.ok;
+    termLine('repair-terminal', ok ? '> concluido' : '> concluido com falhas',
+             ok ? 'var(--state-on)' : '#e8a33d');
+    setBind('repair_status', (r && r.summary) || (ok ? 'Reparo concluido.' : 'Reparo falhou.'));
+  }
+
+  function onRepairStatus(msg) { setBind('repair_status', msg); }
+
+  // -- Otimizacao -----------------------------------------------
+  let optCats = [];
+  const optChecked = new Set();
+
+  function renderOpt() {
+    const box = document.getElementById('opt-list');
+    if (!box) return;
+    if (!optCats.length) {
+      box.innerHTML = '<div style="padding:24px;text-align:center;color:var(--fg-muted);'
+        + 'font-size:11px">Nao foi possivel carregar as otimizacoes.</div>';
+      return;
+    }
+    box.innerHTML = optCats.map(function (c, i) {
+      const on = optChecked.has(c.id) ? 'checked' : '';
+      const warn = c.warning
+        ? '<span style="display:block;font-size:10px;color:#e8a33d;margin-top:3px">&#9888; ' + c.warning + '</span>'
+        : '';
+      const rec = c.default
+        ? '<span style="font-size:9px;color:var(--state-on);font-weight:700">RECOMENDADO</span>'
+        : '';
+      return '<label style="display:flex;gap:12px;align-items:flex-start;padding:11px 14px;'
+        + 'border-bottom:1px solid var(--border-subtle);cursor:pointer">'
+        + '<input type="checkbox" data-opt="' + i + '" ' + on + ' style="margin-top:3px;flex-shrink:0">'
+        + '<span style="flex:1;min-width:0">'
+        + '<span style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap">'
+        + '<span style="font-size:11px;color:var(--fg-primary);font-weight:600">' + c.label + '</span>'
+        + rec + '</span>'
+        + '<span style="display:block;font-size:10px;color:var(--fg-muted);margin-top:2px;line-height:1.5">'
+        + (c.desc || '') + '</span>' + warn + '</span>'
+        + '<span class="mono" style="font-size:10px;color:var(--fg-secondary);flex-shrink:0">'
+        + (c.impact || '') + '</span></label>';
+    }).join('');
+
+    box.querySelectorAll('input[data-opt]').forEach(function (cb) {
+      cb.addEventListener('change', function (e) {
+        const c = optCats[parseInt(e.target.dataset.opt, 10)];
+        if (!c) return;
+        if (e.target.checked) optChecked.add(c.id); else optChecked.delete(c.id);
+        if (window.bridge && window.bridge.setOptimizeSelection) {
+          window.bridge.setOptimizeSelection(Array.from(optChecked));
+        }
+        updateOptCounts();
+      });
+    });
+    updateOptCounts();
+  }
+
+  function updateOptCounts() {
+    setBind('opt_active', String(optChecked.size));
+    setBind('opt_total', String(optCats.length));
+    setBind('opt_hint', optChecked.size ? '' : 'Selecione ao menos uma otimizacao.');
+  }
+
+  function onOptimizeCategories(r) {
+    if (!r || !r.categories) return;
+    optCats = r.categories;
+    optChecked.clear();
+    optCats.forEach(function (c) { if (c.checked) optChecked.add(c.id); });
+    renderOpt();
+  }
+
+  window.optSelect = function (mode) {
+    optChecked.clear();
+    if (mode === 'all') {
+      optCats.forEach(function (c) { optChecked.add(c.id); });
+    }
+    if (mode === 'default') {
+      optCats.filter(function (c) { return c.default; })
+             .forEach(function (c) { optChecked.add(c.id); });
+    }
+    if (window.bridge && window.bridge.setOptimizeSelection) {
+      window.bridge.setOptimizeSelection(Array.from(optChecked));
+    }
+    renderOpt();
+  };
+
+  window.optRun = function () {
+    if (!window.bridge || !window.bridge.startOptimize) return;
+    if (!optChecked.size) { setBind('opt_hint', 'Selecione ao menos uma otimizacao.'); return; }
+    const btn = document.getElementById('opt-btn');
+    if (btn) { btn.disabled = true; btn.style.opacity = '.5'; btn.textContent = 'APLICANDO...'; }
+    termClear('opt-terminal');
+    termLine('opt-terminal', '> aplicando otimizacoes...');
+    window.bridge.startOptimize(Array.from(optChecked), 'apply');
+  };
+
+  function onOptimizeStep(label, ok, detail) {
+    termLine('opt-terminal', (ok ? '> ' : '! ') + label + (detail ? ' - ' + detail : ''),
+             ok ? null : '#e8a33d');
+  }
+
+  function onOptimizeFinished(r) {
+    const btn = document.getElementById('opt-btn');
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'APLICAR OTIMIZACOES'; }
+    if (!r) return;
+    const parts = [r.applied + ' aplicada(s)'];
+    if (r.failed > 0) parts.push(r.failed + ' falhou(ram)');
+    termLine('opt-terminal', '> concluido - ' + parts.join(' | '), 'var(--state-on)');
+    setBind('opt_status', parts.join(' | '));
+  }
+
   // ── Conecta a bridge Qt ───────────────────────────────────────
   function connectBridge() {
     const b = window.bridge;
@@ -618,7 +784,15 @@
     if (b.cleanCalculating && b.cleanCalculating.connect) b.cleanCalculating.connect(onCleanCalculating);
     if (b.cleanFinished && b.cleanFinished.connect)       b.cleanFinished.connect(onCleanFinished);
 
-    if (b.getCleanCategories) b.getCleanCategories(onCleanCategories);
+    if (b.repairStep && b.repairStep.connect)             b.repairStep.connect(onRepairStep);
+    if (b.repairFinished && b.repairFinished.connect)     b.repairFinished.connect(onRepairFinished);
+    if (b.repairStatus && b.repairStatus.connect)         b.repairStatus.connect(onRepairStatus);
+    if (b.optimizeStep && b.optimizeStep.connect)         b.optimizeStep.connect(onOptimizeStep);
+    if (b.optimizeFinished && b.optimizeFinished.connect) b.optimizeFinished.connect(onOptimizeFinished);
+
+    if (b.getRepairTools)        b.getRepairTools(onRepairTools);
+    if (b.getOptimizeCategories) b.getOptimizeCategories(onOptimizeCategories);
+    if (b.getCleanCategories)    b.getCleanCategories(onCleanCategories);
 
     if (b.getInitialSnapshot) b.getInitialSnapshot(applySnapshot);
     if (b.getHardware)        b.getHardware(applyHardware);

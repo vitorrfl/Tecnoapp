@@ -45,6 +45,10 @@ class Bridge(QObject):
     cleanCalculating = Signal()
     cleanFinished = Signal("QVariant")
     repairStatus = Signal(str)
+    repairStep = Signal(str, bool, str)
+    repairFinished = Signal("QVariant")
+    optimizeStep = Signal(str, bool, str)
+    optimizeFinished = Signal("QVariant")
 
     def __init__(self, main_window=None, parent=None):
         super().__init__(parent)
@@ -63,6 +67,8 @@ class Bridge(QObject):
 
         self._clean_worker = None
         self._clean_total = 0
+        self._repair_worker = None
+        self._optimize_worker = None
         self._bloat: dict | None = None
         self._bloat_scanner = None
         self._bloat_remover = None
@@ -175,14 +181,97 @@ class Bridge(QObject):
         """Alias legado: usa o fluxo inline, sem tela Qt."""
         self.startCleanWith([])
 
+    # ── Otimizacao ──────────────────────────────────────────────
+    @Slot(result="QVariant")
+    def getOptimizeCategories(self):
+        """Categorias de otimizacao + selecao salva."""
+        try:
+            from app3 import _OPTIMIZE_CATEGORIES, _load_optimize_state
+        except Exception:
+            return {"categories": [], "active": 0, "total": 0}
+
+        state = _load_optimize_state() or {}
+        saved = state.get("user_selections") or {}
+        cats = []
+        for c in _OPTIMIZE_CATEGORIES:
+            cid = c["id"]
+            on = bool(saved[cid]) if cid in saved else bool(c.get("default"))
+            cats.append({
+                "id": cid,
+                "label": c.get("label", cid),
+                "desc": c.get("desc", ""),
+                "impact": c.get("impact", ""),
+                "warning": c.get("warning", ""),
+                "default": bool(c.get("default")),
+                "checked": on,
+            })
+        return {
+            "categories": cats,
+            "active": sum(1 for c in cats if c["checked"]),
+            "total": len(cats),
+        }
+
+    @Slot("QVariant")
+    def setOptimizeSelection(self, ids):
+        try:
+            from app3 import _OPTIMIZE_CATEGORIES, _load_optimize_state, _save_optimize_state
+        except Exception:
+            return
+        wanted = {str(i) for i in (ids or [])}
+        state = _load_optimize_state() or {}
+        state["user_selections"] = {c["id"]: (c["id"] in wanted) for c in _OPTIMIZE_CATEGORIES}
+        _save_optimize_state(state)
+
+    @Slot("QVariant", str)
+    def startOptimize(self, ids, mode="apply"):
+        """
+        Aplica (ou reverte) otimizacoes reportando progresso por sinal.
+
+        run_optimize_process() renderizava a tela QWidgets legada por cima
+        do WebEngine; aqui o worker roda direto.
+        """
+        if self._optimize_worker is not None and self._optimize_worker.isRunning():
+            return
+        try:
+            from app3 import OptimizeWorker, _OPTIMIZE_CATEGORIES, _load_optimize_state
+        except Exception as e:
+            self.optimizeFinished.emit({"ok": False, "error": f"{type(e).__name__}"})
+            return
+
+        selected = {str(i) for i in (ids or [])}
+        if not selected:
+            state = _load_optimize_state() or {}
+            saved = state.get("user_selections") or {}
+            selected = ({cid for cid, v in saved.items() if v} if saved
+                        else {c["id"] for c in _OPTIMIZE_CATEGORIES if c.get("default")})
+
+        self._optimize_worker = OptimizeWorker(selected, mode=str(mode or "apply"))
+        self._optimize_worker.step_done.connect(
+            lambda lbl, ok, det: self.optimizeStep.emit(str(lbl), bool(ok), str(det or "")))
+        self._optimize_worker.finished.connect(self._on_optimize_finished)
+        self._optimize_worker.start()
+
+    def _on_optimize_finished(self, applied: int, failed: int):
+        w = self._optimize_worker
+        self._optimize_worker = None
+        if w is not None:
+            try:
+                w.wait(); w.deleteLater()
+            except Exception:
+                pass
+        try:
+            from app3 import _save_module_status
+            _save_module_status("optimize", f"✓  {applied} otimizacoes aplicadas")
+        except Exception:
+            pass
+        self.optimizeFinished.emit({
+            "ok": True, "applied": int(applied or 0), "failed": int(failed or 0),
+        })
+
     @Slot()
     def runOtimizacao(self):
-        """
-        run_optimize_process() renderiza a tela QWidgets legada por cima
-        do WebEngine. Nao chamado ate existir fluxo inline no front.
-        """
-        self.repairStatus.emit(
-            "Otimizacao ainda nao disponivel nesta versao da interface.")
+        """Alias legado: aplica com a selecao salva."""
+        self.startOptimize([], "apply")
 
     @Slot()
     def runGamerActivate(self):
@@ -439,17 +528,56 @@ class Bridge(QObject):
     def onGamerDeactivate(self):
         self.runGamerDeactivate()
 
+    # ── Reparos ─────────────────────────────────────────────────
+    @Slot(result="QVariant")
+    def getRepairTools(self):
+        """Ferramentas de reparo disponiveis, para o front montar a lista."""
+        try:
+            from app3 import _REPAIR_TOOLS
+        except Exception:
+            return []
+        return [{
+            "id": t["id"],
+            "label": t.get("label", t["id"]),
+            "desc": t.get("desc", ""),
+            "duration": t.get("duration", ""),
+            "warning": t.get("warning", ""),
+            "reboot": bool(t.get("reboot")),
+            "category": t.get("category", ""),
+        } for t in _REPAIR_TOOLS]
+
     @Slot(str)
     def onRunRepair(self, tool_id: str):
         """
-        Reparos ainda nao tem fluxo inline no front.
+        Executa o reparo reportando progresso por sinal.
 
-        show_reparos_progresso() monta QWidgets por cima do WebEngine
-        (mesma "janela solo" da limpeza), entao nao e chamado. Reporta o
-        estado para o front em vez de abrir a tela legada.
+        Roda o RepairWorker aqui em vez de show_reparos_progresso(), que
+        monta QWidgets por cima do WebEngine (a "janela solo").
         """
-        self.repairStatus.emit(
-            "Reparos ainda nao disponivel nesta versao da interface.")
+        if self._repair_worker is not None and self._repair_worker.isRunning():
+            return
+        try:
+            from app3 import RepairWorker
+        except Exception as e:
+            self.repairFinished.emit({"ok": False, "error": f"{type(e).__name__}"})
+            return
+
+        self.repairStatus.emit("Iniciando reparo...")
+        self._repair_worker = RepairWorker(str(tool_id))
+        self._repair_worker.step_done.connect(
+            lambda lbl, ok, det: self.repairStep.emit(str(lbl), bool(ok), str(det or "")))
+        self._repair_worker.finished.connect(self._on_repair_finished)
+        self._repair_worker.start()
+
+    def _on_repair_finished(self, ok: bool, summary: str):
+        w = self._repair_worker
+        self._repair_worker = None
+        if w is not None:
+            try:
+                w.wait(); w.deleteLater()
+            except Exception:
+                pass
+        self.repairFinished.emit({"ok": bool(ok), "summary": str(summary or "")})
 
     @Slot(str, bool)
     def onToggle(self, toggle_id: str, checked: bool):
