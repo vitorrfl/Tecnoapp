@@ -315,12 +315,10 @@
   window.debloatRemove = function () {
     if (!window.bridge || !bloatChecked.size) return;
     const n = bloatChecked.size;
-    if (!confirm(`Remover ${n} ${n === 1 ? 'programa' : 'programas'}?
-
-`
-      + 'Um ponto de restauracao sera criado antes.
-'
-      + 'Desinstalar nao pode ser desfeito pelo app.')) return;
+    const msg = 'Remover ' + n + (n === 1 ? ' programa' : ' programas') + '?'
+      + '\n\nUm ponto de restauracao sera criado antes.'
+      + '\nDesinstalar nao pode ser desfeito pelo app.';
+    if (!confirm(msg)) return;
 
     const btn = document.getElementById('debloat-btn');
     if (btn) { btn.disabled = true; btn.style.opacity = '.4'; }
