@@ -49,6 +49,8 @@ class Bridge(QObject):
     cleanCalculating = Signal()
     cleanFinished = Signal("QVariant")
     repairStatus = Signal(str)
+    deepStep = Signal(str, int)
+    deepFinished = Signal("QVariant")
     repairStep = Signal(str, bool, str)
     repairFinished = Signal("QVariant")
     optimizeStep = Signal(str, bool, str)
@@ -73,6 +75,7 @@ class Bridge(QObject):
         self._clean_worker = None
         self._clean_total = 0
         self._repair_worker = None
+        self._deep_worker = None
         self._optimize_worker = None
         self._bloat: dict | None = None
         self._bloat_scanner = None
@@ -556,6 +559,61 @@ class Bridge(QObject):
     @Slot()
     def onGamerDeactivate(self):
         self.runGamerDeactivate()
+
+    # ── Limpeza profunda (cleanmgr) ─────────────────────────────
+    @Slot(result="QVariant")
+    def getDeepCleanCategories(self):
+        """Handlers do cleanmgr disponiveis nesta maquina."""
+        try:
+            from deepclean import list_handlers
+        except Exception:
+            return {"categories": [], "total": 0, "active": 0}
+        cats = list_handlers()
+        return {
+            "categories": cats,
+            "total": len(cats),
+            "active": sum(1 for c in cats if c["checked"]),
+        }
+
+    @Slot("QVariant")
+    def startDeepClean(self, ids):
+        """
+        Executa a limpeza profunda.
+
+        Escreve o perfil no registro e chama cleanmgr /sagerun — sem a
+        janela que o /sageset do .bat original abria.
+        """
+        if self._deep_worker is not None and self._deep_worker.isRunning():
+            return
+        try:
+            from deepclean import DeepCleanWorker
+        except Exception as e:
+            self._js("onDeepFinished", {"ok": False, "msg": f"{type(e).__name__}"})
+            return
+
+        selected = {str(i) for i in (ids or [])}
+        if not selected:
+            self._js("onDeepFinished", {"ok": False, "msg": "Nenhuma categoria selecionada."})
+            return
+
+        self._deep_worker = DeepCleanWorker(selected)
+        self._deep_worker.step_done.connect(
+            lambda lbl, n: (self.deepStep.emit(str(lbl), int(n)),
+                            self._js("onDeepStep", str(lbl), int(n))))
+        self._deep_worker.finished_deep.connect(self._on_deep_finished)
+        self._deep_worker.start()
+
+    def _on_deep_finished(self, ok: bool, msg: str):
+        w = self._deep_worker
+        self._deep_worker = None
+        if w is not None:
+            try:
+                w.wait(); w.deleteLater()
+            except Exception:
+                pass
+        payload = {"ok": bool(ok), "msg": str(msg or "")}
+        self.deepFinished.emit(payload)
+        self._js("onDeepFinished", payload)
 
     # ── Reparos ─────────────────────────────────────────────────
     @Slot(result="QVariant")

@@ -725,6 +725,108 @@
     setBind('opt_status', parts.join(' | '));
   }
 
+  // -- Limpeza profunda (cleanmgr) ------------------------------
+  let deepCats = [];
+  const deepChecked = new Set();
+
+  function renderDeep() {
+    const box = document.getElementById('deep-list');
+    if (!box) return;
+    if (!deepCats.length) {
+      box.innerHTML = '<div style="padding:24px;text-align:center;color:var(--fg-muted);'
+        + 'font-size:11px">Nao foi possivel listar as categorias.</div>';
+      return;
+    }
+    box.innerHTML = deepCats.map(function (c, i) {
+      const on = deepChecked.has(c.id) ? 'checked' : '';
+      const warn = c.warning
+        ? '<span style="display:block;font-size:10px;color:#e8a33d;margin-top:3px">&#9888; '
+          + c.warning + '</span>'
+        : '';
+      const rec = c.default
+        ? '<span style="font-size:9px;color:var(--state-on);font-weight:700">RECOMENDADO</span>'
+        : '';
+      return '<label style="display:flex;gap:12px;align-items:flex-start;padding:11px 14px;'
+        + 'border-bottom:1px solid var(--border-subtle);cursor:pointer">'
+        + '<input type="checkbox" data-deep="' + i + '" ' + on + ' style="margin-top:3px;flex-shrink:0">'
+        + '<span style="flex:1;min-width:0">'
+        + '<span style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap">'
+        + '<span style="font-size:11px;color:var(--fg-primary);font-weight:600">' + c.label + '</span>'
+        + rec + '</span>'
+        + '<span style="display:block;font-size:10px;color:var(--fg-muted);margin-top:2px;line-height:1.5">'
+        + (c.desc || '') + '</span>' + warn + '</span></label>';
+    }).join('');
+
+    box.querySelectorAll('input[data-deep]').forEach(function (cb) {
+      cb.addEventListener('change', function (e) {
+        const c = deepCats[parseInt(e.target.dataset.deep, 10)];
+        if (!c) return;
+        if (e.target.checked) deepChecked.add(c.id); else deepChecked.delete(c.id);
+        updateDeepCounts();
+      });
+    });
+    updateDeepCounts();
+  }
+
+  function updateDeepCounts() {
+    setBind('deep_summary', deepChecked.size + ' de ' + deepCats.length + ' categorias marcadas');
+  }
+
+  function onDeepCategories(r) {
+    if (!r || !r.categories) return;
+    deepCats = r.categories;
+    deepChecked.clear();
+    deepCats.forEach(function (c) { if (c.checked) deepChecked.add(c.id); });
+    renderDeep();
+  }
+
+  window.deepSelect = function (mode) {
+    deepChecked.clear();
+    if (mode === 'default') {
+      deepCats.filter(function (c) { return c.default; })
+              .forEach(function (c) { deepChecked.add(c.id); });
+    }
+    renderDeep();
+  };
+
+  window.deepRun = function () {
+    if (!window.bridge || !window.bridge.startDeepClean) return;
+    if (!deepChecked.size) { setBind('deep_status', 'Selecione ao menos uma categoria.'); return; }
+
+    const perigosos = deepCats.filter(function (c) {
+      return deepChecked.has(c.id) && c.warning;
+    });
+    let msg = 'Iniciar a limpeza profunda com ' + deepChecked.size + ' categorias?';
+    if (perigosos.length) {
+      msg += '\n\nATENCAO - itens sem volta selecionados:';
+      perigosos.forEach(function (c) { msg += '\n  - ' + c.label; });
+    }
+    msg += '\n\nPode levar varios minutos sem mostrar progresso detalhado.';
+    if (!confirm(msg)) return;
+
+    const btn = document.getElementById('deep-btn');
+    if (btn) { btn.disabled = true; btn.style.opacity = '.5'; btn.textContent = 'LIMPANDO...'; }
+    termClear('deep-terminal');
+    termLine('deep-terminal', '> iniciando limpeza profunda...');
+    window.bridge.startDeepClean(Array.from(deepChecked));
+  };
+
+  function onDeepStep(label) {
+    termLine('deep-terminal', '> ' + label);
+  }
+
+  function onDeepFinished(r) {
+    const btn = document.getElementById('deep-btn');
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'INICIAR LIMPEZA PROFUNDA'; }
+    if (!r) return;
+    termLine('deep-terminal', '> ' + (r.msg || (r.ok ? 'concluido' : 'falhou')),
+             r.ok ? 'var(--state-on)' : '#e8a33d');
+    setBind('deep_status', r.msg || '');
+  }
+
+  window.onDeepStep = onDeepStep;
+  window.onDeepFinished = onDeepFinished;
+
   // Expostos em window: o Python empurra o progresso via runJavaScript
   // porque os sinais de progresso do QWebChannel nao chegavam ao JS.
   window.onCleanStep = onCleanStep;
@@ -803,6 +905,7 @@
 
     if (b.getRepairTools)        b.getRepairTools(onRepairTools);
     if (b.getOptimizeCategories) b.getOptimizeCategories(onOptimizeCategories);
+    if (b.getDeepCleanCategories) b.getDeepCleanCategories(onDeepCategories);
     if (b.getCleanCategories)    b.getCleanCategories(onCleanCategories);
 
     if (b.getInitialSnapshot) b.getInitialSnapshot(applySnapshot);

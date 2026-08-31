@@ -211,6 +211,31 @@ _REPAIR_TOOLS = [
         "warning": "",
         "category": "advanced",
     },
+    {
+        "id": "explorer_restart",
+        "label": "Reiniciar o Explorer",
+        "desc": "Encerra e reabre o Windows Explorer. Corrige barra de tarefas travada, "
+                "ícones sumidos, menu Iniciar que não abre e áreas da tela congeladas.",
+        "duration": "~5 seg",
+        "reboot": False,
+        "warning": "A tela pisca e a barra de tarefas some por alguns segundos — é normal.",
+        "category": "essential",
+    },
+    {
+        "id": "chkdsk",
+        "label": "Verificar e Reparar o Disco (ChkDsk)",
+        "desc": "Procura e corrige erros no sistema de arquivos e setores defeituosos. "
+                "Só roda na próxima inicialização, porque precisa do disco livre de uso.",
+        "duration": "AGENDADO — de 20 min a várias horas no próximo boot",
+        "reboot": True,
+        "warning": "MUITO IMPORTANTE: na próxima vez que ligar o PC, uma tela azul de "
+                   "verificação aparecerá e pode ficar PARADA na mesma porcentagem por "
+                   "muito tempo. ISSO É NORMAL E NÃO É TRAVAMENTO. Em discos grandes ou "
+                   "com defeito pode levar VÁRIAS HORAS. NÃO desligue o computador durante "
+                   "o processo — interromper pode corromper o disco. Só use se suspeitar "
+                   "de problema físico no disco, e quando puder deixar o PC ligado.",
+        "category": "advanced",
+    },
 ]
 
 
@@ -740,6 +765,38 @@ class RepairWorker(QThread):
                   else "Reparo falhou. Tente novamente."
         self.finished.emit(ok, summary)
 
+    def _repair_explorer(self):
+        """Reinicia o Windows Explorer. Corrige shell travado."""
+        self.step_done.emit("Encerrando o Explorer", True, "")
+        ok1, _ = self._run_shell("taskkill /f /im explorer.exe", timeout=30)
+
+        # O Windows costuma reabrir sozinho; garantimos que volte de todo jeito.
+        ok2, det = self._run_shell("start explorer.exe", timeout=30)
+        self.step_done.emit("Reabrindo o Explorer", True, "")
+
+        self.finished.emit(True, "Explorer reiniciado.")
+
+    def _repair_chkdsk(self):
+        """
+        Agenda o ChkDsk para a proxima inicializacao.
+
+        Nao roda com o Windows ativo: /f e /r exigem uso exclusivo do
+        volume. O `echo S|` responde ao prompt de agendamento — sem isso o
+        comando fica esperando entrada para sempre.
+        """
+        self.step_done.emit("Agendando verificacao do disco C:", True, "")
+        ok, det = self._run_shell("echo S| chkdsk C: /f /r", timeout=120)
+
+        if ok:
+            self.step_done.emit(
+                "Agendado — a verificacao roda na proxima inicializacao", True, "")
+            self.finished.emit(
+                True,
+                "ChkDsk agendado. Ao reiniciar, a verificacao vai rodar antes do "
+                "Windows abrir e PODE PARECER TRAVADA por muito tempo — nao desligue.")
+        else:
+            self.finished.emit(False, f"Nao foi possivel agendar o ChkDsk. {det}")
+
     def _repair_printer(self):
         self.step_done.emit("Parando Spooler de Impressão", True, "")
         ok1, _ = self._run_shell("net stop spooler", timeout=60)
@@ -767,6 +824,8 @@ class RepairWorker(QThread):
             elif self.tool_id == "wu_reset":       self._repair_windows_update()
             elif self.tool_id == "store_reset":    self._repair_store()
             elif self.tool_id == "printer_reset":  self._repair_printer()
+            elif self.tool_id == "explorer_restart": self._repair_explorer()
+            elif self.tool_id == "chkdsk":         self._repair_chkdsk()
             else:
                 self.finished.emit(False, "Ferramenta desconhecida.")
         except Exception as e:
