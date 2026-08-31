@@ -6,6 +6,71 @@
 (function () {
   'use strict';
 
+  // -- Prioridade de jogo ---------------------------------------
+  let gameCands = [];
+  const gameTargets = new Set();
+
+  function renderGames() {
+    const box = document.getElementById('game-list');
+    if (!box) return;
+
+    if (!gameCands.length) {
+      box.innerHTML = '<div style="padding:14px;text-align:center;color:var(--fg-muted);'
+        + 'font-size:11px">Nenhum processo candidato. Abra o jogo e clique em ATUALIZAR.</div>';
+      return;
+    }
+
+    box.innerHTML = gameCands.map(function (c, i) {
+      const on = gameTargets.has(c.name) ? 'checked' : '';
+      const selo = c.likely_game
+        ? '<span style="font-size:9px;color:var(--state-on);font-weight:700">PROVAVEL JOGO</span>'
+        : '';
+      const prio = c.is_boosted
+        ? '<span style="font-size:9px;color:var(--cyan);font-weight:700">' + c.priority + '</span>'
+        : '<span style="font-size:9px;color:var(--fg-muted)">' + c.priority + '</span>';
+      return '<label style="display:flex;gap:10px;align-items:center;padding:8px 12px;'
+        + 'border-bottom:1px solid var(--border-subtle);cursor:pointer">'
+        + '<input type="checkbox" data-game="' + i + '" ' + on + ' style="flex-shrink:0">'
+        + '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;'
+        + 'white-space:nowrap;font-size:11px;color:var(--fg-primary)">' + c.name + '</span>'
+        + selo + prio
+        + '<span class="mono" style="font-size:10px;color:var(--fg-secondary);flex-shrink:0">'
+        + c.mem_mb + ' MB</span></label>';
+    }).join('');
+
+    box.querySelectorAll('input[data-game]').forEach(function (cb) {
+      cb.addEventListener('change', function (e) {
+        const c = gameCands[parseInt(e.target.dataset.game, 10)];
+        if (!c) return;
+        if (e.target.checked) gameTargets.add(c.name); else gameTargets.delete(c.name);
+        if (window.bridge && window.bridge.setGameTargets) {
+          window.bridge.setGameTargets(Array.from(gameTargets));
+        }
+        setBind('prio_status', gameTargets.size
+          ? gameTargets.size + ' processo(s) receberao prioridade alta no Modo Gamer'
+          : 'Nenhum processo escolhido.');
+      });
+    });
+  }
+
+  function onGameCandidates(r) {
+    if (!r) return;
+    gameCands = r.candidates || [];
+    gameTargets.clear();
+    (r.targets || []).forEach(function (t) { gameTargets.add(t); });
+    renderGames();
+    setBind('prio_status', gameTargets.size
+      ? gameTargets.size + ' processo(s) receberao prioridade alta no Modo Gamer'
+      : 'Nenhum processo escolhido.');
+  }
+  window.onGameCandidates = onGameCandidates;
+
+  window.refreshGames = function () {
+    if (window.bridge && window.bridge.getGameCandidates) {
+      window.bridge.getGameCandidates(onGameCandidates);
+    }
+  };
+
   // -- Modal de reboot ------------------------------------------
   window.onAskReboot = function (tweaks) {
     const lista = (tweaks && tweaks.length)
@@ -1072,6 +1137,7 @@
 
     if (b.getRepairTools)        b.getRepairTools(onRepairTools);
     if (b.getOptimizeCategories) b.getOptimizeCategories(onOptimizeCategories);
+    if (b.getGameCandidates) b.getGameCandidates(onGameCandidates);
     if (b.getDeepCleanCategories) b.getDeepCleanCategories(onDeepCategories);
     if (b.getCleanCategories)    b.getCleanCategories(onCleanCategories);
 

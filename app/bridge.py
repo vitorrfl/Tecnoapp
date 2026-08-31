@@ -585,6 +585,59 @@ class Bridge(QObject):
     def onGamerDeactivate(self):
         self.runGamerDeactivate()
 
+    # ── Prioridade de jogo ──────────────────────────────────────
+    @Slot(result="QVariant")
+    def getGameCandidates(self):
+        """Processos que podem ser o jogo, mais os ja escolhidos."""
+        try:
+            from gamer.gamedetect import list_candidates
+            from gamer.prefs import load_priority_targets
+        except Exception:
+            return {"candidates": [], "targets": []}
+        try:
+            return {
+                "candidates": list_candidates(),
+                "targets": load_priority_targets(),
+            }
+        except Exception:
+            return {"candidates": [], "targets": []}
+
+    @Slot("QVariant")
+    def setGameTargets(self, names):
+        """Salva quais processos recebem prioridade alta no Modo Gamer."""
+        try:
+            from gamer.tweaks.priority import save_targets
+            save_targets([str(n) for n in (names or [])])
+        except Exception:
+            pass
+
+    @Slot(str, result="QVariant")
+    def setPriorityNow(self, name: str):
+        """
+        Aplica prioridade alta imediatamente, sem esperar o Modo Gamer.
+
+        Util para quem so quer priorizar o jogo pontualmente.
+        """
+        try:
+            from gamer.gamedetect import find_by_names, set_priority, PRIORITY_HIGH
+        except Exception as e:
+            return {"ok": False, "msg": type(e).__name__}
+
+        alvos = find_by_names([name])
+        if not alvos:
+            return {"ok": False, "msg": "processo nao esta em execucao"}
+
+        ok_n, erro = 0, ""
+        for a in alvos:
+            ok, msg = set_priority(a["pid"], PRIORITY_HIGH)
+            if ok:
+                ok_n += 1
+            else:
+                erro = msg
+        if ok_n:
+            return {"ok": True, "msg": f"{name}: prioridade alta aplicada"}
+        return {"ok": False, "msg": f"{name}: {erro or 'falhou'}"}
+
     # ── Reboot ──────────────────────────────────────────────────
     @Slot(result=str)
     def getPostRebootFlag(self):

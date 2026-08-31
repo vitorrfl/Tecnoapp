@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from .engine import GamerEngine
-from .tweaks import cpu, gpu, network, system
+from .tweaks import cpu, gpu, network, priority, system
 
 
 def build_engine() -> GamerEngine:
@@ -11,4 +11,5 @@ def build_engine() -> GamerEngine:
     gpu.register_all(engine)
     system.register_all(engine)
     network.register_all(engine)
+    priority.register_all(engine)
     return engine

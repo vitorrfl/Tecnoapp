@@ -32,3 +32,32 @@ def save_enabled_optins(ids: set[str]) -> None:
         json.dumps({"enabled_optins": sorted(ids)}, indent=2),
         encoding="utf-8",
     )
+
+
+def _targets_path() -> Path:
+    return appdata_dir() / "gamer_priority_targets.json"
+
+
+def load_priority_targets() -> list[str]:
+    """Nomes de processo que o usuario escolheu priorizar no Modo Gamer."""
+    path = _targets_path()
+    if not path.exists():
+        return []
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        return [str(x) for x in (data.get("targets") or [])]
+    except Exception:
+        return []
+
+
+def save_priority_targets(names: list[str]) -> bool:
+    try:
+        path = _targets_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"targets": [str(n) for n in (names or [])]}, f,
+                      ensure_ascii=False, indent=2)
+        return True
+    except Exception:
+        return False
