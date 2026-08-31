@@ -1,0 +1,3 @@
+>> assinados: ok
+>> emitindo um de cada
+>> RECEBIDOS: {"metricsUpdated":0,"cleanStep":0,"cleanFinished":0,"bloatProgress":0,"updateStatus":0,"repairStatus":0}

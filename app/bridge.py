@@ -16,6 +16,8 @@ Uso:
 
 from __future__ import annotations
 
+import json
+
 from PySide6.QtCore import QObject, QTimer, Signal, Slot
 
 import psutil
@@ -41,7 +43,9 @@ class Bridge(QObject):
     bloatScanned = Signal("QVariant")
     bloatProgress = Signal(int, int, str)
     bloatFinished = Signal("QVariant")
-    cleanStep = Signal(str, "QVariant")
+    # Signal(str, "QVariant") nao era entregue ao JS pelo QWebChannel;
+    # tipos concretos funcionam (mesmo padrao de bloatProgress/repairStep).
+    cleanStep = Signal(str, int)
     cleanCalculating = Signal()
     cleanFinished = Signal("QVariant")
     repairStatus = Signal(str)
@@ -53,6 +57,7 @@ class Bridge(QObject):
     def __init__(self, main_window=None, parent=None):
         super().__init__(parent)
         self._main = main_window
+        self._page = None
         self._cpu_static = cpu_static()
         self._os = os_info()
         self._hardware: dict | None = None
@@ -82,6 +87,29 @@ class Bridge(QObject):
         self._bloat_scanner = BloatScanner()
         self._bloat_scanner.finished_scan.connect(self._on_bloat)
         self._bloat_scanner.start()
+
+    # ── Push direto para o JS ───────────────────────────────────
+    def set_page(self, page):
+        """Recebe a QWebEnginePage para empurrar chamadas JS."""
+        self._page = page
+
+    def _js(self, fn: str, *args):
+        """
+        Chama uma funcao JS na pagina.
+
+        Os sinais de progresso do QWebChannel nao eram entregues ao JS
+        (metricsUpdated funcionava, cleanStep/repairStep nao), entao o
+        progresso e empurrado por runJavaScript, o mesmo mecanismo que o
+        _Page usa para o console.
+        """
+        page = getattr(self, "_page", None)
+        if page is None:
+            return
+        try:
+            payload = ", ".join(json.dumps(a, ensure_ascii=False) for a in args)
+            page.runJavaScript(f"window.{fn} && window.{fn}({payload});")
+        except Exception:
+            pass
 
     def _on_hardware(self, info: dict):
         self._hardware = dict(info)
@@ -247,7 +275,8 @@ class Bridge(QObject):
 
         self._optimize_worker = OptimizeWorker(selected, mode=str(mode or "apply"))
         self._optimize_worker.step_done.connect(
-            lambda lbl, ok, det: self.optimizeStep.emit(str(lbl), bool(ok), str(det or "")))
+            lambda lbl, ok, det: (self.optimizeStep.emit(str(lbl), bool(ok), str(det or "")),
+                                  self._js("onOptimizeStep", str(lbl), bool(ok), str(det or ""))))
         self._optimize_worker.finished.connect(self._on_optimize_finished)
         self._optimize_worker.start()
 
@@ -264,9 +293,9 @@ class Bridge(QObject):
             _save_module_status("optimize", f"✓  {applied} otimizacoes aplicadas")
         except Exception:
             pass
-        self.optimizeFinished.emit({
-            "ok": True, "applied": int(applied or 0), "failed": int(failed or 0),
-        })
+        payload = {"ok": True, "applied": int(applied or 0), "failed": int(failed or 0)}
+        self.optimizeFinished.emit(payload)
+        self._js("onOptimizeFinished", payload)
 
     @Slot()
     def runOtimizacao(self):
@@ -371,12 +400,14 @@ class Bridge(QObject):
         self._clean_worker = CleanWorker(selected)
         self._clean_worker.step_done.connect(self._on_clean_step)
         self._clean_worker.calculating.connect(self.cleanCalculating.emit)
+        self._clean_worker.calculating.connect(lambda: self._js("onCleanCalculating"))
         self._clean_worker.finished.connect(self._on_clean_finished)
         self._clean_worker.start()
 
     def _on_clean_step(self, label: str, freed: int):
         self._clean_total += int(freed or 0)
         self.cleanStep.emit(str(label), int(freed or 0))
+        self._js("onCleanStep", str(label), int(freed or 0))
 
     def _on_clean_finished(self, total: int):
         total = int(total or 0)
@@ -400,11 +431,9 @@ class Bridge(QObject):
             except Exception:
                 pass
 
-        self.cleanFinished.emit({
-            "ok": True,
-            "total": total,
-            "human": self._fmt_size(total),
-        })
+        payload = {"ok": True, "total": total, "human": self._fmt_size(total)}
+        self.cleanFinished.emit(payload)
+        self._js("onCleanFinished", payload)
 
     @staticmethod
     def _fmt_size(b: int) -> str:
@@ -565,7 +594,8 @@ class Bridge(QObject):
         self.repairStatus.emit("Iniciando reparo...")
         self._repair_worker = RepairWorker(str(tool_id))
         self._repair_worker.step_done.connect(
-            lambda lbl, ok, det: self.repairStep.emit(str(lbl), bool(ok), str(det or "")))
+            lambda lbl, ok, det: (self.repairStep.emit(str(lbl), bool(ok), str(det or "")),
+                                  self._js("onRepairStep", str(lbl), bool(ok), str(det or ""))))
         self._repair_worker.finished.connect(self._on_repair_finished)
         self._repair_worker.start()
 
@@ -577,7 +607,9 @@ class Bridge(QObject):
                 w.wait(); w.deleteLater()
             except Exception:
                 pass
-        self.repairFinished.emit({"ok": bool(ok), "summary": str(summary or "")})
+        payload = {"ok": bool(ok), "summary": str(summary or "")}
+        self.repairFinished.emit(payload)
+        self._js("onRepairFinished", payload)
 
     @Slot(str, bool)
     def onToggle(self, toggle_id: str, checked: bool):

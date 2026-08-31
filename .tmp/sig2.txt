@@ -1,0 +1,5 @@
+>> assinado; handler interno existe? undefined
+>> emitindo cleanStep do Python 3x
+
+=== RESULTADO ===
+{"recebidosNoJS":0,"amostra":[],"linhasNoTerminal":0}

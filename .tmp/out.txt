@@ -1,0 +1,11 @@
+>> chamando window.cleanStart() (mesmo caminho do botao)
+>> estado antes: {"temCleanStart":"function","temCleanRunQuick":"function","temStartCleanWith":true,"temSinalStep":true}
+
+=== TERMINAL NO DOM ===
+{"terminalExiste":true,"display":"block","linhas":0,"texto":"","status":"Ultima limpeza: 31/08/2026 as 11:04"}
+
+=== SINAIS NO PYTHON ===
+cleanStep: 9 | calculating: 1
+cleanFinished: {'human': '0 B', 'ok': True, 'total': 0}
+
+=== CONSOLE JS ===

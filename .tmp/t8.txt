@@ -1,0 +1,3 @@
+>> assinado: ok
+>> emitindo cleanStep x2 (metricsUpdated corre sozinho)
+>> RECEBIDOS via WebScreen: {"metricsUpdated":0,"cleanStep":0}

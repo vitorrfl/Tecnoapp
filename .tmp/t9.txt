@@ -1,0 +1,3 @@
+>> cards apos 8s: {"cpu":"53","ram":"90"}
+>> emitindo cleanStep x3 pelo Python
+>> terminal: {"linhas":0,"texto":""}

@@ -1,0 +1,5 @@
+>> canal pronto no JS: true
+>> emitindo ping x3
+
+=== objeto minimo (sem TecnoApp) ===
+pings recebidos no JS: 3

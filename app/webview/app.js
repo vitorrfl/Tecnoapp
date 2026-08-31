@@ -725,6 +725,16 @@
     setBind('opt_status', parts.join(' | '));
   }
 
+  // Expostos em window: o Python empurra o progresso via runJavaScript
+  // porque os sinais de progresso do QWebChannel nao chegavam ao JS.
+  window.onCleanStep = onCleanStep;
+  window.onCleanCalculating = onCleanCalculating;
+  window.onCleanFinished = onCleanFinished;
+  window.onRepairStep = onRepairStep;
+  window.onRepairFinished = onRepairFinished;
+  window.onOptimizeStep = onOptimizeStep;
+  window.onOptimizeFinished = onOptimizeFinished;
+
   // ── Conecta a bridge Qt ───────────────────────────────────────
   function connectBridge() {
     const b = window.bridge;
@@ -733,6 +743,17 @@
     if (b.metricsUpdated && b.metricsUpdated.connect) {
       b.metricsUpdated.connect(applySnapshot);
     }
+
+    if (b.cleanStep && b.cleanStep.connect)               b.cleanStep.connect(onCleanStep);
+    if (b.cleanCalculating && b.cleanCalculating.connect) b.cleanCalculating.connect(onCleanCalculating);
+    if (b.cleanFinished && b.cleanFinished.connect)       b.cleanFinished.connect(onCleanFinished);
+
+    if (b.repairStep && b.repairStep.connect)             b.repairStep.connect(onRepairStep);
+    if (b.repairFinished && b.repairFinished.connect)     b.repairFinished.connect(onRepairFinished);
+    if (b.repairStatus && b.repairStatus.connect)         b.repairStatus.connect(onRepairStatus);
+    if (b.optimizeStep && b.optimizeStep.connect)         b.optimizeStep.connect(onOptimizeStep);
+    if (b.optimizeFinished && b.optimizeFinished.connect) b.optimizeFinished.connect(onOptimizeFinished);
+
     if (b.hardwareReady && b.hardwareReady.connect) {
       b.hardwareReady.connect(applyHardware);
     }
@@ -779,16 +800,6 @@
       };
       poll();
     }
-
-    if (b.cleanStep && b.cleanStep.connect)               b.cleanStep.connect(onCleanStep);
-    if (b.cleanCalculating && b.cleanCalculating.connect) b.cleanCalculating.connect(onCleanCalculating);
-    if (b.cleanFinished && b.cleanFinished.connect)       b.cleanFinished.connect(onCleanFinished);
-
-    if (b.repairStep && b.repairStep.connect)             b.repairStep.connect(onRepairStep);
-    if (b.repairFinished && b.repairFinished.connect)     b.repairFinished.connect(onRepairFinished);
-    if (b.repairStatus && b.repairStatus.connect)         b.repairStatus.connect(onRepairStatus);
-    if (b.optimizeStep && b.optimizeStep.connect)         b.optimizeStep.connect(onOptimizeStep);
-    if (b.optimizeFinished && b.optimizeFinished.connect) b.optimizeFinished.connect(onOptimizeFinished);
 
     if (b.getRepairTools)        b.getRepairTools(onRepairTools);
     if (b.getOptimizeCategories) b.getOptimizeCategories(onOptimizeCategories);

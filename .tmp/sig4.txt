@@ -1,0 +1,7 @@
+>> assinado: ok
+>> emitindo cleanStep #1
+>> emitindo cleanStep #2
+>> emitindo cleanStep #3
+
+=== RESULTADO ===
+{"recebidos":0,"linhas":0}

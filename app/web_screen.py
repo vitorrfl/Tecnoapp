@@ -45,6 +45,9 @@ class WebScreen(QWebEngineView):
 
         # Bridge: registra o objeto que o JS acessa via window.bridge
         self.bridge = Bridge(main_window=main_window, parent=self)
+        # Push direto para a pagina: os sinais de progresso do QWebChannel
+        # nao chegavam ao JS, entao a Bridge chama funcoes JS diretamente.
+        self.bridge.set_page(self._page)
         self.channel = QWebChannel(self._page)
         self.channel.registerObject("bridge", self.bridge)
         self._page.setWebChannel(self.channel)
