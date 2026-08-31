@@ -22,6 +22,8 @@ import psutil
 
 from version import APP_VERSION
 from updater import UpdateChecker, UpdateDownloader, run_installer_and_exit
+from bloatware import BloatScanner
+from bloatware.remover import BloatRemover
 
 from system_info import (
     os_info, cpu_static, cpu_pct, mem_live, disk_c_info, disks_info,
@@ -36,6 +38,9 @@ class Bridge(QObject):
     updateAvailable = Signal("QVariant")
     updateProgress = Signal(int)
     updateStatus = Signal(str)
+    bloatScanned = Signal("QVariant")
+    bloatProgress = Signal(int, int, str)
+    bloatFinished = Signal("QVariant")
 
     def __init__(self, main_window=None, parent=None):
         super().__init__(parent)
@@ -52,9 +57,19 @@ class Bridge(QObject):
         self._checker = None
         self._downloader = None
 
+        self._bloat: dict | None = None
+        self._bloat_scanner = None
+        self._bloat_remover = None
+
         self._hw_worker = HardwareInfoWorker()
         self._hw_worker.finished_info.connect(self._on_hardware)
         self._hw_worker.start()
+
+        # Varredura de bloatware: 1-5s, roda uma vez em thread propria.
+        # NAO entra no _tick() de 1s das metricas.
+        self._bloat_scanner = BloatScanner()
+        self._bloat_scanner.finished_scan.connect(self._on_bloat)
+        self._bloat_scanner.start()
 
     def _on_hardware(self, info: dict):
         self._hardware = dict(info)
@@ -230,6 +245,50 @@ class Bridge(QObject):
                 self._main.close()
         else:
             self.updateStatus.emit("Nao foi possivel iniciar o instalador.")
+
+    # ── Debloat ─────────────────────────────────────────────────
+    def _on_bloat(self, result: dict):
+        self._bloat = dict(result or {})
+        self.bloatScanned.emit(self._bloat)
+
+    @Slot(result="QVariant")
+    def getBloatware(self):
+        """Resultado da varredura. None enquanto ainda esta rodando."""
+        return self._bloat
+
+    @Slot()
+    def rescanBloatware(self):
+        if self._bloat_scanner and self._bloat_scanner.isRunning():
+            return
+        self._bloat_scanner = BloatScanner()
+        self._bloat_scanner.finished_scan.connect(self._on_bloat)
+        self._bloat_scanner.start()
+
+    @Slot("QVariant")
+    def removeBloatware(self, names):
+        """
+        Remove os itens cujos nomes o usuario marcou.
+
+        Recebe nomes (nao os dicts do JS) e resolve contra o resultado da
+        varredura: o JS nunca dita o comando de desinstalacao executado.
+        """
+        if not self._bloat or not names:
+            return
+        wanted = {str(n) for n in names}
+        items = [i for i in self._bloat.get("items", []) if i.get("name") in wanted]
+        if not items:
+            return
+        if self._bloat_remover and self._bloat_remover.isRunning():
+            return
+
+        self._bloat_remover = BloatRemover(items, make_restore=True)
+        self._bloat_remover.progress.connect(self.bloatProgress.emit)
+        self._bloat_remover.finished_all.connect(self._on_bloat_done)
+        self._bloat_remover.start()
+
+    def _on_bloat_done(self, summary: dict):
+        self.bloatFinished.emit(dict(summary or {}))
+        self.rescanBloatware()   # atualiza a lista com o que sobrou
 
     # ── Aliases com nomes usados pelo app.js novo ───────────────
     @Slot()

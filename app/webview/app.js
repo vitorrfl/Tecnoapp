@@ -229,6 +229,116 @@
     // Mensagens informativas (sem update) nao abrem o banner
   }
 
+  // ── Debloat ───────────────────────────────────────────────────
+  let bloatItems = [];
+  const bloatChecked = new Set();
+
+  function riskLabel(r) {
+    return r === 'safe'
+      ? '<span style="color:var(--state-on);font-size:9px;font-weight:700">SEGURO</span>'
+      : '<span style="color:#e8a33d;font-size:9px;font-weight:700">ATENCAO</span>';
+  }
+
+  function renderBloat() {
+    const box = document.getElementById('debloat-list');
+    if (!box) return;
+
+    if (!bloatItems.length) {
+      box.innerHTML = '<div style="padding:24px;text-align:center;color:var(--fg-muted);font-size:11px">'
+        + 'Nenhum bloatware conhecido encontrado neste PC.</div>';
+      return;
+    }
+
+    box.innerHTML = bloatItems.map((it, idx) => {
+      const size = it.size_mb > 0 ? it.size_mb + ' MB' : '—';
+      const on = bloatChecked.has(it.name) ? 'checked' : '';
+      return `
+        <label style="display:flex;gap:12px;align-items:flex-start;padding:9px 14px;
+                      border-bottom:1px solid var(--border-subtle);cursor:pointer">
+          <input type="checkbox" data-bloat="${idx}" ${on} style="margin-top:3px;flex-shrink:0">
+          <span style="flex:1;min-width:0">
+            <span style="display:flex;gap:8px;align-items:baseline">
+              <span style="font-size:11px;color:var(--fg-primary);font-weight:600;
+                           overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${it.name}</span>
+              ${riskLabel(it.risk)}
+            </span>
+            <span style="display:block;font-size:10px;color:var(--fg-muted);margin-top:2px">${it.why || ''}</span>
+          </span>
+          <span class="mono" style="font-size:10px;color:var(--fg-secondary);flex-shrink:0">${size}</span>
+        </label>`;
+    }).join('');
+
+    box.querySelectorAll('input[data-bloat]').forEach(cb => {
+      cb.addEventListener('change', e => {
+        const it = bloatItems[parseInt(e.target.dataset.bloat, 10)];
+        if (!it) return;
+        if (e.target.checked) bloatChecked.add(it.name); else bloatChecked.delete(it.name);
+        updateBloatButton();
+      });
+    });
+    updateBloatButton();
+  }
+
+  function updateBloatButton() {
+    const btn = document.getElementById('debloat-btn');
+    if (!btn) return;
+    const n = bloatChecked.size;
+    const mb = bloatItems.filter(i => bloatChecked.has(i.name))
+                         .reduce((a, i) => a + (i.size_mb || 0), 0);
+    btn.disabled = n === 0;
+    btn.style.opacity = n === 0 ? '.4' : '1';
+    btn.style.cursor = n === 0 ? 'not-allowed' : 'pointer';
+    btn.textContent = n === 0
+      ? 'REMOVER SELECIONADOS'
+      : `REMOVER ${n} ${n === 1 ? 'ITEM' : 'ITENS'}${mb > 0 ? ' (' + mb + ' MB)' : ''}`;
+  }
+
+  function onBloatScanned(res) {
+    if (!res) return;
+    bloatItems = res.items || [];
+    bloatChecked.clear();
+    const mb = res.total_mb || 0;
+    setBind('debloat_summary', bloatItems.length
+      ? `${bloatItems.length} programas encontrados${mb > 0 ? ' · ' + mb + ' MB' : ''}`
+      : 'Nenhum bloatware conhecido encontrado');
+    renderBloat();
+  }
+
+  window.debloatSelect = function (mode) {
+    bloatChecked.clear();
+    if (mode === 'safe') {
+      bloatItems.filter(i => i.risk === 'safe').forEach(i => bloatChecked.add(i.name));
+    }
+    renderBloat();
+  };
+
+  window.debloatRemove = function () {
+    if (!window.bridge || !bloatChecked.size) return;
+    const n = bloatChecked.size;
+    if (!confirm(`Remover ${n} ${n === 1 ? 'programa' : 'programas'}?
+
+`
+      + 'Um ponto de restauracao sera criado antes.
+'
+      + 'Desinstalar nao pode ser desfeito pelo app.')) return;
+
+    const btn = document.getElementById('debloat-btn');
+    if (btn) { btn.disabled = true; btn.style.opacity = '.4'; }
+    window.bridge.removeBloatware(Array.from(bloatChecked));
+  };
+
+  function onBloatProgress(cur, total, name) {
+    setBind('debloat_status', `Removendo ${cur}/${total}: ${name}`);
+  }
+
+  function onBloatFinished(sum) {
+    if (!sum) return;
+    const parts = [`${sum.removed} removido(s)`];
+    if (sum.freed_mb > 0) parts.push(`${sum.freed_mb} MB liberados`);
+    if (sum.failed > 0)   parts.push(`${sum.failed} falhou(ram)`);
+    setBind('debloat_status', parts.join(' · '));
+  }
+
   // ── Conecta a bridge Qt ───────────────────────────────────────
   function connectBridge() {
     const b = window.bridge;
@@ -250,6 +360,17 @@
     if (b.updateStatus && b.updateStatus.connect) {
       b.updateStatus.connect(onUpdateStatus);
     }
+
+    if (b.bloatScanned && b.bloatScanned.connect) {
+      b.bloatScanned.connect(onBloatScanned);
+    }
+    if (b.bloatProgress && b.bloatProgress.connect) {
+      b.bloatProgress.connect(onBloatProgress);
+    }
+    if (b.bloatFinished && b.bloatFinished.connect) {
+      b.bloatFinished.connect(onBloatFinished);
+    }
+    if (b.getBloatware) b.getBloatware(onBloatScanned);
 
     if (b.getInitialSnapshot) b.getInitialSnapshot(applySnapshot);
     if (b.getHardware)        b.getHardware(applyHardware);
