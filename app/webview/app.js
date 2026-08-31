@@ -539,6 +539,20 @@
   };
 
   // ── Progresso da limpeza (inline, sem janela separada) ────────
+  // Abre um terminal e marca a tela, para o CSS encolher a lista acima.
+  function termShow(t) {
+    if (!t) return false;
+    const primeira = t.style.display !== 'block';
+    t.style.display = 'block';
+    const tela = t.closest('.screen');
+    if (tela) tela.classList.add('has-terminal');
+    if (primeira && t.scrollIntoView) {
+      try { t.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {}
+    }
+    return primeira;
+  }
+  window.termShow = termShow;
+
   function cleanTerminal() {
     return document.getElementById('clean-terminal');
   }
@@ -555,7 +569,7 @@
   function onCleanStep(label, freed) {
     const t = cleanTerminal();
     if (!t) return;
-    t.style.display = 'block';
+    termShow(t);
     const mb = freed > 0 ? ' — ' + (freed / (1024 * 1024)).toFixed(1) + ' MB' : '';
     const line = document.createElement('div');
     line.className = 'terminal-line';
@@ -567,7 +581,7 @@
   function onCleanCalculating() {
     const t = cleanTerminal();
     if (!t) return;
-    t.style.display = 'block';
+    termShow(t);
     const line = document.createElement('div');
     line.className = 'terminal-line';
     line.textContent = '> calculando espaco liberado...';
@@ -599,7 +613,7 @@
   window.cleanRunQuick = function () {
     if (!window.bridge || !window.bridge.startCleanWith) return;
     const t = cleanTerminal();
-    if (t) { t.innerHTML = ''; t.style.display = 'block'; }
+    if (t) { t.innerHTML = ''; termShow(t); }
     cleanSetRunning(true);
     navigate('limpeza');
     window.bridge.startCleanWith(Array.from(cleanChecked));
@@ -609,7 +623,7 @@
   function termLine(id, text, color) {
     const t = document.getElementById(id);
     if (!t) return;
-    t.style.display = 'block';
+    termShow(t);
     const d = document.createElement('div');
     d.className = 'terminal-line';
     if (color) d.style.color = color;
@@ -620,7 +634,9 @@
 
   function termClear(id) {
     const t = document.getElementById(id);
-    if (t) { t.innerHTML = ''; t.style.display = 'block'; }
+    if (!t) return;
+    t.innerHTML = '';
+    termShow(t);
   }
 
   // -- Reparos --------------------------------------------------
@@ -888,7 +904,8 @@
     if (!r) return;
     termLine('deep-terminal', '> ' + (r.msg || (r.ok ? 'concluido' : 'falhou')),
              r.ok ? 'var(--state-on)' : '#e8a33d');
-    setBind('deep_status', r.msg || '');
+    // A mensagem ja aparece no terminal; repeti-la no rodape duplicava o texto.
+    setBind('deep_status', '');
   }
 
   window.onDeepStep = onDeepStep;

@@ -545,11 +545,22 @@ html, body {
 
 .terminal {
   background: var(--bg-terminal);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-row);
-  padding: 10px 14px;
+  padding: 12px 14px;
   width: 100%;
-  max-height: 240px;
+  min-height: 120px;
+  max-height: 300px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Quando um terminal esta aberto na tela, a lista acima cede espaco:
+   sem isso a lista de 29 itens empurra o terminal para fora da vista.
+   A classe e posta pelo JS — mais confiavel que inspecionar o atributo
+   style inline. */
+.screen.has-terminal .scroll-list {
+  max-height: min(30vh, 260px);
 }
 .terminal-line {
   font-family: var(--font-mono);
