@@ -89,6 +89,42 @@
   </div>
 </div>
 
+<!-- Tela de carregamento: o app leva ~15s para abrir (WebEngine +
+     leitura de hardware + varredura de programas). Sem isso a janela
+     fica em branco e parece travada. -->
+<div id="boot-splash" style="position:fixed;inset:0;z-index:20000;
+     background:#030407;display:flex;flex-direction:column;
+     align-items:center;justify-content:center;gap:22px;
+     transition:opacity .45s ease">
+  <img src="assets/logo.png" alt="Tecnosup"
+       style="width:230px;max-width:55vw;opacity:.95">
+
+  <div style="width:44px;height:44px;border-radius:50%;
+              border:3px solid rgba(14,179,255,.15);
+              border-top-color:#0eb3ff;
+              animation:tec-spin .8s linear infinite"></div>
+
+  <div id="boot-step" class="mono"
+       style="font-size:11px;color:#5a6472;letter-spacing:.4px;
+              min-height:16px;text-align:center">
+    iniciando...
+  </div>
+
+  <div class="mono" style="position:absolute;bottom:26px;
+              font-size:10px;color:#39414d">
+    <span id="boot-version"></span> Tecnosup
+  </div>
+</div>
+
+<!-- Despedida ao sair -->
+<div id="bye-splash" style="display:none;position:fixed;inset:0;z-index:20001;
+     background:#030407;flex-direction:column;align-items:center;
+     justify-content:center;gap:20px">
+  <img src="assets/logo.png" alt="Tecnosup"
+       style="width:230px;max-width:55vw;opacity:.95">
+  <div style="font-size:14px;color:#8b93a1;letter-spacing:.3px">Até logo!</div>
+</div>
+
 <div class="app">
 
   <!-- ─────────── SIDEBAR ─────────── -->
@@ -143,7 +179,7 @@
       Criar Ponto de Restauração
     </button>
 
-    <button class="btn-exit" onclick="window.bridge?.onExit?.()">
+    <button class="btn-exit" onclick="window.sairComSplash()">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       SAIR
     </button>

@@ -233,6 +233,68 @@
     });
   };
 
+  // -- Splash de carregamento -----------------------------------
+  // As etapas sao reais: cada uma e marcada quando o dado correspondente
+  // chega do Python. Uma barra de progresso seria falsa, porque a duracao
+  // de cada etapa varia muito por maquina.
+  const bootEtapas = {
+    bridge: false,   // canal Python<->JS pronto
+    metricas: false, // primeiro snapshot de CPU/RAM/disco
+    hardware: false, // GPU, placa-mae (consulta WMI, 2-5s)
+    programas: false // varredura de bloatware (1-5s)
+  };
+  let bootFechado = false;
+
+  function bootStep(texto) {
+    const el = document.getElementById('boot-step');
+    if (el) el.textContent = texto;
+  }
+
+  function bootMarcar(etapa, texto) {
+    if (bootEtapas[etapa]) return;
+    bootEtapas[etapa] = true;
+    if (texto) bootStep(texto);
+    bootTalvezFechar();
+  }
+
+  function bootTalvezFechar() {
+    if (bootFechado) return;
+    // Hardware e programas sao os lentos; metricas e bridge chegam rapido.
+    if (!bootEtapas.bridge || !bootEtapas.metricas) return;
+    if (!bootEtapas.hardware || !bootEtapas.programas) return;
+    bootFechar();
+  }
+
+  function bootFechar() {
+    if (bootFechado) return;
+    bootFechado = true;
+    bootStep('pronto');
+    const el = document.getElementById('boot-splash');
+    if (!el) return;
+    setTimeout(function () {
+      el.classList.add('hidden');
+      setTimeout(function () { el.style.display = 'none'; }, 500);
+    }, 260);
+  }
+
+  // Rede de seguranca: se alguma etapa falhar (sem rede, WMI travado), o
+  // splash nao pode prender o app para sempre.
+  setTimeout(function () { if (!bootFechado) bootFechar(); }, 20000);
+
+  window.bootStep = bootStep;
+  window.bootMarcar = bootMarcar;
+
+  // -- Despedida ------------------------------------------------
+  window.sairComSplash = function () {
+    const bye = document.getElementById('bye-splash');
+    if (bye) bye.style.display = 'flex';
+    // Curto de proposito: so o tempo de a tela pintar. Mais que isso e
+    // o app fazendo o usuario esperar para fechar.
+    setTimeout(function () {
+      if (window.bridge && window.bridge.onExit) window.bridge.onExit();
+    }, 650);
+  };
+
   // -- Modal de confirmacao ------------------------------------
   // Substitui confirm(): o dialogo nativo mostra "Javascript Confirm" e o
   // caminho do arquivo, quebrando a identidade visual do app.
@@ -420,6 +482,7 @@
   // ── Aplica o snapshot vindo do Python ─────────────────────────
   function applySnapshot(s) {
     if (!s) return;
+    bootMarcar('metricas', 'lendo memoria e disco...');
 
     // Cards do dashboard
     setMetric('cpu',  Math.round(s.cpu.pct));
@@ -459,6 +522,7 @@
 
   // ── Hardware lento (GPU / placa-mae) ──────────────────────────
   function applyHardware(hw) {
+    bootMarcar('hardware', 'identificando hardware...');
     if (!hw) return;
     setBind('hw_gpu',  hw.gpu_name || '—');
     setBind('hw_mobo', `${hw.mobo_manufacturer || '—'} ${hw.mobo_model || ''}`.trim());
@@ -660,6 +724,7 @@
   }
 
   function onBloatScanned(res) {
+    bootMarcar('programas', 'analisando programas instalados...');
     if (!res) return;
     bloatItems = res.items || [];
     bloatChecked.clear();
@@ -1240,6 +1305,8 @@
     const b = window.bridge;
     if (!b) return false;
 
+    bootMarcar('bridge', 'conectando ao sistema...');
+
     if (b.metricsUpdated && b.metricsUpdated.connect) {
       b.metricsUpdated.connect(applySnapshot);
     }
@@ -1311,7 +1378,11 @@
     if (b.getHardware)        b.getHardware(applyHardware);
 
     // Versao no rodape + checagem automatica no start
-    if (b.getVersion) b.getVersion(v => setText('.version-tag', 'v ' + v + ' · Tecnosup'));
+    if (b.getVersion) b.getVersion(function (v) {
+      setText('.version-tag', 'v ' + v + ' · Tecnosup');
+      const bv = document.getElementById('boot-version');
+      if (bv) bv.textContent = 'v' + v + ' · ';
+    });
     if (b.checkForUpdates) b.checkForUpdates();
     // A checagem roda em thread e pode terminar antes do JS assinar; busca
     // o resultado depois para nao perder a notificacao.

@@ -584,3 +584,16 @@ html, body {
 .flex-1  { flex: 1; }
 .center  { display: flex; align-items: center; justify-content: center; }
 .between { display: flex; align-items: center; justify-content: space-between; }
+
+
+/* ──────────────────────────────────────────────────────────────
+   SPLASH — carregamento e despedida
+   ────────────────────────────────────────────────────────────── */
+@keyframes tec-spin {
+  to { transform: rotate(360deg); }
+}
+
+#boot-splash.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
