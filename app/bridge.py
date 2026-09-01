@@ -30,6 +30,7 @@ from bloatware.remover import BloatRemover
 from system_info import (
     os_info, cpu_static, cpu_pct, mem_live, disk_c_info, disks_info,
     processes_count, uptime_seconds, format_uptime,
+    cpu_per_core, cpu_freq_live, battery_info, swap_info,
     HardwareInfoWorker,
 )
 
@@ -151,6 +152,12 @@ class Bridge(QObject):
                 "version": self._os.get("version", "—"),
             },
             "uptime": format_uptime(uptime_seconds()),
+            # Diagnostico: nucleos revelam saturacao que a media esconde,
+            # e o swap explica lentidao quando a RAM esta no limite.
+            "cores": cpu_per_core(),
+            "freq": cpu_freq_live(),
+            "battery": battery_info(),
+            "swap": swap_info(),
         }
 
     def _tick(self):

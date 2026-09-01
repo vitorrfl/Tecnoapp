@@ -566,8 +566,110 @@
     setBind('hw_ram', `${fmtBytes(s.ram.total)} total`);
     setBind('hw_os',  `${s.os.system} (${s.os.version})`);
     setBind('hw_disk', `${fmtBytes(s.disk.used)} / ${fmtBytes(s.disk.total)}`);
+
+    aplicarDiagnostico(s);
   }
   window.applySnapshot = applySnapshot;
+
+
+  // -- Diagnostico da Home --------------------------------------
+  function corDeUso(p) {
+    if (p > 85) return 'var(--state-danger)';
+    if (p > 60) return '#e8a33d';
+    return 'var(--cyan)';
+  }
+
+  function aplicarDiagnostico(s) {
+    // Nucleos: uma barra por core. A media de CPU esconde o caso em que
+    // um nucleo esta a 100% e os outros ociosos.
+    const box = document.getElementById('core-bars');
+    if (box && s.cores && s.cores.length) {
+      if (box.children.length !== s.cores.length) {
+        box.innerHTML = s.cores.map(function () {
+          return '<div style="flex:1;background:rgba(255,255,255,.05);height:100%;'
+            + 'border-radius:2px;display:flex;align-items:flex-end;overflow:hidden">'
+            + '<div class="core-bar" style="width:100%;height:0%;transition:height .4s ease"></div></div>';
+        }).join('');
+      }
+      const barras = box.querySelectorAll('.core-bar');
+      let maxCore = 0;
+      s.cores.forEach(function (v, i) {
+        if (barras[i]) {
+          barras[i].style.height = Math.max(2, v) + '%';
+          barras[i].style.background = corDeUso(v);
+        }
+        if (v > maxCore) maxCore = v;
+      });
+      setBind('cores_info', s.cores.length + ' núcleos · pico ' + Math.round(maxCore) + '%');
+    }
+
+    // Frequencia
+    if (s.freq && s.freq.max) {
+      setBind('freq_now', String(s.freq.current));
+      const fb = document.getElementById('freq-bar');
+      if (fb) {
+        fb.style.width = s.freq.pct + '%';
+        fb.style.background = s.freq.pct < 60 ? '#e8a33d' : 'var(--cyan)';
+      }
+      setBind('freq_info', 'máximo ' + s.freq.max + ' MHz');
+    }
+
+    // Paginacao
+    if (s.swap) {
+      setBind('swap_pct', String(s.swap.pct));
+      const sb = document.getElementById('swap-bar');
+      if (sb) {
+        sb.style.width = s.swap.pct + '%';
+        sb.style.background = corDeUso(s.swap.pct);
+      }
+      const gb = function (b) { return (b / (1024 * 1024 * 1024)).toFixed(1); };
+      setBind('swap_info', s.swap.total
+        ? gb(s.swap.used) + ' GB de ' + gb(s.swap.total) + ' GB'
+        : 'sem arquivo de paginação');
+    }
+
+    // Bateria: some em desktop
+    const bbox = document.getElementById('battery-box');
+    if (bbox && s.battery) {
+      if (s.battery.has) {
+        bbox.style.display = 'block';
+        setBind('bat_pct', String(s.battery.pct));
+        const bb = document.getElementById('bat-bar');
+        if (bb) {
+          bb.style.width = s.battery.pct + '%';
+          bb.style.background = s.battery.pct < 20 && !s.battery.plugged
+            ? 'var(--state-danger)' : 'var(--state-on)';
+        }
+        setBind('bat_info', s.battery.plugged ? 'ligado na tomada' : 'usando bateria');
+      } else {
+        bbox.style.display = 'none';
+      }
+    }
+
+    // Alerta: junta os sinais que explicam lentidao real
+    const avisos = [];
+    if (s.swap && s.swap.pct > 40 && s.ram && s.ram.pct > 85) {
+      avisos.push('A memória está no limite e o sistema já usa o disco como '
+        + 'memória (paginação). É a causa mais comum de travamentos.');
+    }
+    if (s.battery && s.battery.has && !s.battery.plugged) {
+      avisos.push('Na bateria o Windows reduz o desempenho — ligue na tomada '
+        + 'antes de usar o Modo Gamer.');
+    }
+    if (s.freq && s.freq.max && s.freq.pct < 55) {
+      avisos.push('A CPU está bem abaixo da frequência máxima, o que indica '
+        + 'limitação por energia ou temperatura.');
+    }
+    const al = document.getElementById('diag-alerta');
+    if (al) {
+      if (avisos.length) {
+        al.innerHTML = avisos.map(function (a) { return '⚠ ' + a; }).join('<br>');
+        al.style.display = 'block';
+      } else {
+        al.style.display = 'none';
+      }
+    }
+  }
 
   // ── Hardware lento (GPU / placa-mae) ──────────────────────────
   function applyHardware(hw) {

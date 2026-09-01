@@ -235,3 +235,76 @@ class HardwareInfoWorker(QThread):
         except Exception:
             pass
         self.finished_info.emit(info)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Diagnostico extra da Home
+#
+# Temperatura nao entra aqui: exigiria driver de kernel. Ver docstring
+# do modulo de patch em .tmp/home_extra.py.
+# ─────────────────────────────────────────────────────────────────────
+
+def cpu_per_core() -> list[float]:
+    """Uso por nucleo. Revela saturacao de um core so, que a media esconde."""
+    try:
+        return [round(v, 1) for v in psutil.cpu_percent(percpu=True)]
+    except Exception:
+        return []
+
+
+def cpu_freq_live() -> dict:
+    """
+    Frequencia atual e maxima.
+
+    Corrente muito abaixo da maxima costuma indicar throttling — por
+    calor, bateria ou plano de energia economico.
+    """
+    try:
+        f = psutil.cpu_freq()
+        if not f:
+            return {"current": 0, "max": 0, "pct": 0}
+        cur = float(f.current or 0)
+        mx = float(f.max or 0)
+        return {
+            "current": round(cur),
+            "max": round(mx),
+            "pct": round(cur / mx * 100) if mx else 0,
+        }
+    except Exception:
+        return {"current": 0, "max": 0, "pct": 0}
+
+
+def battery_info() -> dict:
+    """
+    Bateria. Relevante num app de performance: notebook fora da tomada
+    limita o plano de energia, entao o Modo Gamer rende menos.
+    """
+    try:
+        b = psutil.sensors_battery()
+        if not b:
+            return {"has": False}
+        return {
+            "has": True,
+            "pct": round(b.percent),
+            "plugged": bool(b.power_plugged),
+        }
+    except Exception:
+        return {"has": False}
+
+
+def swap_info() -> dict:
+    """
+    Uso de paginacao.
+
+    Com a RAM perto do limite, o swap explica lentidao melhor que a RAM
+    sozinha: o sistema passa a usar disco como memoria.
+    """
+    try:
+        sw = psutil.swap_memory()
+        return {
+            "pct": round(sw.percent),
+            "used": int(sw.used),
+            "total": int(sw.total),
+        }
+    except Exception:
+        return {"pct": 0, "used": 0, "total": 0}

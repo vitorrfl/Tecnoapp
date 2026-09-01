@@ -265,6 +265,68 @@
         </div>
       </div>
 
+      <div class="card" style="margin-bottom:14px">
+        <div class="label" style="margin-bottom:12px">DIAGNÓSTICO</div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:18px">
+
+          <!-- Núcleos: a média esconde saturação de um core só -->
+          <div>
+            <div class="caption" style="margin-bottom:7px">Núcleos da CPU</div>
+            <div id="core-bars" style="display:flex;gap:3px;align-items:flex-end;height:38px"></div>
+            <div class="mono" style="font-size:9px;color:var(--fg-muted);margin-top:5px"
+                 data-bind="cores_info">—</div>
+          </div>
+
+          <!-- Frequência: abaixo do máximo indica throttling -->
+          <div>
+            <div class="caption" style="margin-bottom:7px">Frequência</div>
+            <div style="font-size:19px;font-weight:700;color:var(--fg-primary)">
+              <span data-bind="freq_now">—</span>
+              <span style="font-size:11px;font-weight:400;color:var(--fg-muted)">MHz</span>
+            </div>
+            <div class="progress-track" style="margin-top:6px">
+              <div id="freq-bar" class="progress-fill" style="width:0%"></div>
+            </div>
+            <div class="mono" style="font-size:9px;color:var(--fg-muted);margin-top:5px"
+                 data-bind="freq_info">—</div>
+          </div>
+
+          <!-- Paginação: explica lentidão quando a RAM está no limite -->
+          <div>
+            <div class="caption" style="margin-bottom:7px">Paginação (swap)</div>
+            <div style="font-size:19px;font-weight:700;color:var(--fg-primary)">
+              <span data-bind="swap_pct">—</span>
+              <span style="font-size:11px;font-weight:400;color:var(--fg-muted)">%</span>
+            </div>
+            <div class="progress-track" style="margin-top:6px">
+              <div id="swap-bar" class="progress-fill" style="width:0%"></div>
+            </div>
+            <div class="mono" style="font-size:9px;color:var(--fg-muted);margin-top:5px"
+                 data-bind="swap_info">—</div>
+          </div>
+
+          <!-- Bateria: fora da tomada o Windows limita o desempenho -->
+          <div id="battery-box" style="display:none">
+            <div class="caption" style="margin-bottom:7px">Bateria</div>
+            <div style="font-size:19px;font-weight:700;color:var(--fg-primary)">
+              <span data-bind="bat_pct">—</span>
+              <span style="font-size:11px;font-weight:400;color:var(--fg-muted)">%</span>
+            </div>
+            <div class="progress-track" style="margin-top:6px">
+              <div id="bat-bar" class="progress-fill" style="width:0%"></div>
+            </div>
+            <div class="mono" style="font-size:9px;color:var(--fg-muted);margin-top:5px"
+                 data-bind="bat_info">—</div>
+          </div>
+
+        </div>
+
+        <div id="diag-alerta" style="display:none;margin-top:14px;padding:9px 12px;
+             border-radius:6px;background:rgba(232,163,61,.08);
+             border-left:2px solid #e8a33d;font-size:10px;color:#e8a33d;line-height:1.5"></div>
+      </div>
+
       <div class="card">
         <div class="label">SISTEMA</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 24px;margin-top:8px">
