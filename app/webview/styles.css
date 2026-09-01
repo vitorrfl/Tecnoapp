@@ -597,3 +597,26 @@ html, body {
   opacity: 0;
   pointer-events: none;
 }
+
+
+/* ──────────────────────────────────────────────────────────────
+   CONTATO — rodape da sidebar
+   Discreto por padrao; ganha cor no hover para nao competir com
+   as acoes principais.
+   ────────────────────────────────────────────────────────────── */
+.social-btn {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+  color: var(--fg-muted);
+  padding: 6px 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: color .16s ease, border-color .16s ease, background .16s ease;
+}
+.social-btn:hover {
+  color: var(--cyan);
+  border-color: rgba(14, 179, 255, .4);
+  background: rgba(14, 179, 255, .06);
+}

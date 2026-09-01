@@ -808,6 +808,26 @@ class Bridge(QObject):
         r["humano"] = formatar(r["liberado"])
         return r
 
+    # ── Contato ─────────────────────────────────────────────────
+    # Allowlist: o JS manda um apelido, nao uma URL. Assim nao ha como uma
+    # falha no front virar "abre qualquer coisa no navegador do cliente".
+    _LINKS = {
+        "site": "https://tecnosup-site.web.app/",
+        "instagram": "https://www.instagram.com/tecnosuporte/",
+    }
+
+    @Slot(str)
+    def abrirLink(self, chave: str):
+        """Abre um link institucional no navegador padrao do sistema."""
+        url = self._LINKS.get(str(chave))
+        if not url:
+            return
+        try:
+            import webbrowser
+            webbrowser.open(url)
+        except Exception:
+            pass
+
     # ── Reboot ──────────────────────────────────────────────────
     @Slot(result=str)
     def getPostRebootFlag(self):
