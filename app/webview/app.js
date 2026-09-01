@@ -1304,8 +1304,11 @@
         ? '<span style="font-size:9px;color:var(--cyan);font-weight:700;'
           + 'border:1px solid var(--cyan);border-radius:3px;padding:1px 5px">MANUTENÇÃO</span>'
           + (c.last_run
-            ? '<span style="font-size:9px;color:var(--fg-muted)">última vez: '
-              + c.last_run + '</span>'
+            ? '<span style="font-size:9px;color:'
+              + (manutencaoDisponivel(c) ? 'var(--fg-muted)' : 'var(--state-on)') + '">'
+              + (manutencaoDisponivel(c) ? 'última vez: ' + c.last_run
+                                         : 'feita hoje · ' + c.last_run.split(' ').pop())
+              + '</span>'
             : '')
         : (c.applied === true
           ? '<span style="font-size:9px;color:var(--state-on);font-weight:700;'
@@ -1343,6 +1346,25 @@
 
   let optApplied = 0, optCheckable = 0;
 
+
+  // Manutencao so rende uma vez por dia — e o mesmo intervalo da
+  // manutencao automatica do Windows. Repetir antes disso nao faz nada.
+  const MANUT_INTERVALO_H = 24;
+
+  function horasDesde(txt) {
+    // formato gravado pela Bridge: "01/09/2026 as 15:53"
+    if (!txt) return Infinity;
+    const m = String(txt).match(/(\d{2})\/(\d{2})\/(\d{4})\D+(\d{2}):(\d{2})/);
+    if (!m) return Infinity;
+    const d = new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5]);
+    if (isNaN(d)) return Infinity;
+    return (Date.now() - d.getTime()) / 3600000;
+  }
+
+  function manutencaoDisponivel(c) {
+    return horasDesde(c.last_run) >= MANUT_INTERVALO_H;
+  }
+
   function updateOptCounts() {
     // O card mostra o que esta REALMENTE ativo no sistema; o botao fala
     // do que esta marcado para aplicar.
@@ -1357,9 +1379,13 @@
     const pendentes = optCats.filter(function (c) {
       return optChecked.has(c.id) && !c.maintenance && c.applied !== true;
     }).length;
-    // Manutencao pode rodar sempre: nunca fica "aplicada"
+    // Manutencao so conta se ja passou o intervalo desde a ultima vez
     const manutencoes = optCats.filter(function (c) {
-      return optChecked.has(c.id) && c.maintenance;
+      return optChecked.has(c.id) && c.maintenance && manutencaoDisponivel(c);
+    }).length;
+    // Marcadas mas ainda no intervalo, para explicar o botao desabilitado
+    const manutRecentes = optCats.filter(function (c) {
+      return optChecked.has(c.id) && c.maintenance && !manutencaoDisponivel(c);
     }).length;
     const totalAcoes = pendentes + manutencoes;
 
@@ -1369,8 +1395,14 @@
       setBind('opt_hint', 'Nenhuma otimizacao marcada.');
     } else if (totalAcoes === 0) {
       btn.disabled = true; btn.style.opacity = '.5'; btn.style.cursor = 'not-allowed';
-      btn.textContent = 'TUDO JÁ APLICADO';
-      setBind('opt_hint', 'As otimizações marcadas já estão ativas no sistema.');
+      if (manutRecentes > 0) {
+        btn.textContent = 'TUDO EM DIA';
+        setBind('opt_hint', 'A manutenção foi feita há pouco. Rodar de novo '
+          + 'agora não teria efeito — o disco já está otimizado.');
+      } else {
+        btn.textContent = 'TUDO JÁ APLICADO';
+        setBind('opt_hint', 'As otimizações marcadas já estão ativas no sistema.');
+      }
     } else if (pendentes === 0 && manutencoes > 0) {
       // So manutencao: o texto diz executar, nao aplicar
       btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer';
