@@ -119,10 +119,29 @@
 <!-- Despedida ao sair -->
 <div id="bye-splash" style="display:none;position:fixed;inset:0;z-index:20001;
      background:#030407;flex-direction:column;align-items:center;
-     justify-content:center;gap:20px">
+     justify-content:center;gap:0">
+
   <img src="assets/logo.png" alt="Tecnosup"
-       style="width:230px;max-width:55vw;opacity:.95">
-  <div style="font-size:14px;color:#8b93a1;letter-spacing:.3px">Até logo!</div>
+       style="width:210px;max-width:50vw;opacity:.95;margin-bottom:26px">
+
+  <div id="bye-title" style="font-size:17px;font-weight:700;color:#e8ecf1;
+       letter-spacing:.3px;margin-bottom:6px">Até logo!</div>
+
+  <div id="bye-sub" style="font-size:11px;color:#5a6472;margin-bottom:26px">
+    Obrigado por usar o TecnoApp
+  </div>
+
+  <!-- Resumo do que foi feito, preenchido pelo Python -->
+  <div id="bye-actions" style="display:none;min-width:330px;max-width:min(90vw,430px);
+       border:1px solid rgba(255,255,255,.07);border-radius:10px;
+       background:rgba(255,255,255,.02);padding:14px 18px;margin-bottom:20px"></div>
+
+  <div id="bye-state" class="mono"
+       style="font-size:10px;color:#39414d;letter-spacing:.3px"></div>
+
+  <div id="bye-gamer" style="display:none;font-size:10px;color:#7000ff;
+       font-weight:700;margin-top:14px;letter-spacing:.3px"></div>
+
 </div>
 
 <div class="app">

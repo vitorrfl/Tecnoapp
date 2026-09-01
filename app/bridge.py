@@ -674,6 +674,60 @@ class Bridge(QObject):
             return {"ok": True, "msg": f"{name}: prioridade alta aplicada"}
         return {"ok": False, "msg": f"{name}: {erro or 'falhou'}"}
 
+    # ── Despedida ───────────────────────────────────────────────
+    @Slot(result="QVariant")
+    def getFarewellSummary(self):
+        """
+        O que mostrar na tela de saida.
+
+        Junta o ultimo status de cada modulo com o estado atual da
+        maquina, para a despedida dizer algo util em vez de so 'ate logo'.
+        """
+        out = {"acoes": [], "ram": "", "disco": "", "gamer": False}
+
+        try:
+            from app3 import _load_module_statuses
+            st = _load_module_statuses() or {}
+            rotulos = {
+                "clean": "Limpeza",
+                "optimize": "Otimizacao",
+                "gamer": "Modo Gamer",
+                "repair": "Reparos",
+            }
+            for chave, rotulo in rotulos.items():
+                item = st.get(chave)
+                if not item:
+                    continue
+                msg = str(item.get("message", "")).replace("\u2713", "").strip()
+                if msg:
+                    out["acoes"].append({
+                        "modulo": rotulo,
+                        "texto": msg,
+                        "quando": item.get("timestamp", ""),
+                    })
+        except Exception:
+            pass
+
+        try:
+            snap = self._snapshot()
+            out["ram"] = f"{snap['ram']['pct']:.0f}%"
+            out["disco"] = f"{snap['disk']['pct']:.0f}%"
+        except Exception:
+            pass
+
+        try:
+            # is_active() e o mesmo metodo que a tela do Modo Gamer usa
+            eng = getattr(self._main, "gamer_engine", None)
+            if eng is not None:
+                out["gamer"] = bool(eng.is_active())
+            else:
+                from gamer.facade import build_engine
+                out["gamer"] = bool(build_engine().is_active())
+        except Exception:
+            pass
+
+        return out
+
     # ── Reboot ──────────────────────────────────────────────────
     @Slot(result=str)
     def getPostRebootFlag(self):

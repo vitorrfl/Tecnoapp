@@ -287,12 +287,61 @@
   // -- Despedida ------------------------------------------------
   window.sairComSplash = function () {
     const bye = document.getElementById('bye-splash');
-    if (bye) bye.style.display = 'flex';
-    // Curto de proposito: so o tempo de a tela pintar. Mais que isso e
-    // o app fazendo o usuario esperar para fechar.
-    setTimeout(function () {
+    if (!bye) {
       if (window.bridge && window.bridge.onExit) window.bridge.onExit();
-    }, 650);
+      return;
+    }
+
+    function fechar(ms) {
+      setTimeout(function () {
+        if (window.bridge && window.bridge.onExit) window.bridge.onExit();
+      }, ms);
+    }
+
+    bye.style.display = 'flex';
+
+    if (!window.bridge || !window.bridge.getFarewellSummary) {
+      fechar(700);
+      return;
+    }
+
+    window.bridge.getFarewellSummary(function (r) {
+      let temResumo = false;
+
+      if (r && r.acoes && r.acoes.length) {
+        temResumo = true;
+        const box = document.getElementById('bye-actions');
+        box.innerHTML = r.acoes.map(function (a) {
+          return '<div style="display:flex;gap:10px;align-items:baseline;'
+            + 'padding:5px 0;font-size:11px">'
+            + '<span style="color:#4caf50;flex-shrink:0">&#10003;</span>'
+            + '<span style="color:#8b93a1;min-width:82px;flex-shrink:0">' + a.modulo + '</span>'
+            + '<span style="color:#e8ecf1;flex:1">' + a.texto + '</span>'
+            + '</div>';
+        }).join('');
+        box.style.display = 'block';
+        document.getElementById('bye-sub').textContent =
+          'Resumo das ultimas acoes neste PC';
+      }
+
+      if (r && (r.ram || r.disco)) {
+        const partes = [];
+        if (r.ram) partes.push('memoria ' + r.ram);
+        if (r.disco) partes.push('disco ' + r.disco);
+        document.getElementById('bye-state').textContent = partes.join('  ·  ');
+      }
+
+      // Aviso que importa: sair com o Modo Gamer ativo deixa os tweaks
+      // aplicados, e o usuario precisa saber disso.
+      if (r && r.gamer) {
+        const g = document.getElementById('bye-gamer');
+        g.textContent = '● MODO GAMER CONTINUA ATIVO';
+        g.style.display = 'block';
+      }
+
+      // Com resumo na tela vale um tempo maior para dar para ler.
+      fechar(temResumo ? 2200 : 900);
+    });
   };
 
   // -- Modal de confirmacao ------------------------------------
