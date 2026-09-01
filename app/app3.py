@@ -890,6 +890,24 @@ class TecnoApp(QMainWindow):
             ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
             sys.exit()
 
+        # Este e o processo que fica: toma posse da instancia unica.
+        # O nao-elevado nao pode segurar o mutex, porque morre na linha
+        # acima assim que dispara a elevacao.
+        try:
+            import singleton
+            if not singleton.acquire():
+                if not singleton.focus_existing():
+                    QMessageBox.information(
+                        None, "TecnoApp",
+                        "O TecnoApp ja esta aberto.\n\n"
+                        "Procure a janela na barra de tarefas."
+                    )
+                sys.exit(0)
+        except SystemExit:
+            raise
+        except Exception:
+            pass
+
         self.setWindowTitle("Tecnosup · Soluções Digitais")
         self.resize(1100, 720)
         self.setMinimumSize(900, 620)
@@ -3511,6 +3529,27 @@ if __name__ == "__main__":
     try:
         app = QApplication(sys.argv)
         app.setStyleSheet(GLOBAL_STYLESHEET)
+
+        # Instancia unica: duas copias mexendo nos mesmos tweaks e no mesmo
+        # snapshot em %APPDATA% corrompem o estado do Modo Gamer.
+        #
+        # Aqui so CHECA, sem tomar posse: este processo pode ser o
+        # nao-elevado, que morre logo apos disparar o ShellExecuteW. Quem
+        # toma posse de fato e o processo elevado, no __init__ de TecnoApp.
+        import singleton
+        if singleton.is_running():
+            if not singleton.focus_existing():
+                m = QMessageBox()
+                m.setWindowTitle("TecnoApp")
+                m.setIcon(QMessageBox.Information)
+                m.setText("O TecnoApp ja esta aberto.")
+                m.setInformativeText(
+                    "Procure a janela na barra de tarefas. "
+                    "Manter duas copias abertas pode corromper o estado dos tweaks."
+                )
+                m.exec()
+            sys.exit(0)
+
         window = TecnoApp()
         window.show()
         sys.exit(app.exec())
