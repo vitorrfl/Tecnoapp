@@ -572,6 +572,47 @@
   window.applySnapshot = applySnapshot;
 
 
+
+  // -- Liberar memoria ------------------------------------------
+  window.liberarMemoria = function () {
+    if (!window.bridge || !window.bridge.liberarMemoria) return;
+    const btn = document.getElementById('mem-free-btn');
+    if (btn) {
+      btn.disabled = true;
+      btn.style.opacity = '.55';
+      btn.style.cursor = 'wait';
+      btn.textContent = 'LIBERANDO...';
+    }
+
+    window.bridge.liberarMemoria(function (r) {
+      if (!btn) return;
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.style.cursor = 'pointer';
+
+      if (r && r.ok) {
+        const ganho = r.antes_pct - r.depois_pct;
+        btn.textContent = ganho >= 1
+          ? '\u2713 ' + r.humano + ' liberados'
+          : '\u2713 memória já estava enxuta';
+        btn.style.color = 'var(--state-on)';
+        btn.style.borderColor = 'rgba(76,175,80,.35)';
+        btn.style.background = 'rgba(76,175,80,.07)';
+      } else {
+        btn.textContent = 'não foi possível liberar';
+        btn.style.color = '#e8a33d';
+      }
+
+      // Volta ao normal para poder rodar de novo.
+      setTimeout(function () {
+        btn.textContent = 'LIBERAR MEMÓRIA';
+        btn.style.color = 'var(--cyan)';
+        btn.style.borderColor = 'rgba(14,179,255,.28)';
+        btn.style.background = 'rgba(14,179,255,.07)';
+      }, 4000);
+    });
+  };
+
   // -- Diagnostico da Home --------------------------------------
   function corDeUso(p) {
     if (p > 85) return 'var(--state-danger)';

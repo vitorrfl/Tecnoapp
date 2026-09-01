@@ -773,6 +773,28 @@ class Bridge(QObject):
 
         return out
 
+    # ── Memoria ─────────────────────────────────────────────────
+    @Slot(result="QVariant")
+    def liberarMemoria(self):
+        """
+        Pede aos processos que devolvam memoria ociosa.
+
+        Usa EmptyWorkingSet (modo usuario), nao a API de kernel que
+        limpa a standby list — essa causou BSOD no tweak empty_standby e
+        aqui a operacao precisa ser segura para clicar sem pensar.
+        """
+        try:
+            from memclean import liberar, formatar
+        except Exception as e:
+            return {"ok": False, "msg": f"{type(e).__name__}"}
+
+        r = liberar()
+        if not r.get("ok"):
+            return {"ok": False, "msg": "nao foi possivel liberar memoria"}
+
+        r["humano"] = formatar(r["liberado"])
+        return r
+
     # ── Reboot ──────────────────────────────────────────────────
     @Slot(result=str)
     def getPostRebootFlag(self):

@@ -228,6 +228,14 @@
           <div class="center" style="margin-top:10px"><span class="metric metric-value">0</span><span class="metric-unit"> %</span></div>
           <div class="progress-track" style="margin-top:10px"><div class="progress-fill" data-pct="0" style="width:0%"></div></div>
           <div class="caption center" style="margin-top:6px" data-bind="ram_sub">—</div>
+        <button id="mem-free-btn" onclick="window.liberarMemoria()"
+                style="margin-top:9px;width:100%;padding:6px 10px;font-size:10px;
+                       font-weight:700;letter-spacing:.3px;color:var(--cyan);
+                       background:rgba(14,179,255,.07);
+                       border:1px solid rgba(14,179,255,.28);border-radius:6px;
+                       cursor:pointer;transition:background .15s">
+          LIBERAR MEMÓRIA
+        </button>
         </div>
         <div class="card flex-1" data-metric="disk">
           <div class="label">DISCO C:</div>
