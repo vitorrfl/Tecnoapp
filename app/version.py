@@ -15,7 +15,7 @@ Ao lançar uma versão nova:
     3. publicar o instalador na release do GitHub
 """
 
-APP_VERSION = "2.0.0-beta"
+APP_VERSION = "2.0.1-beta"
 GITHUB_REPO = "vitorrfl/Tecnoapp"
 
 __all__ = ["APP_VERSION", "GITHUB_REPO"]
