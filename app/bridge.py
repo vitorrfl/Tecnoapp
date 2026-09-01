@@ -60,6 +60,10 @@ class Bridge(QObject):
         super().__init__(parent)
         self._main = main_window
         self._page = None
+        # Marco da sessao: o resumo da despedida so conta o que aconteceu
+        # depois disto, senao repetiria execucoes antigas para sempre.
+        from datetime import datetime as _dt
+        self._session_start = _dt.now()
         self._cpu_static = cpu_static()
         self._os = os_info()
         self._hardware: dict | None = None
@@ -686,7 +690,9 @@ class Bridge(QObject):
         out = {"acoes": [], "ram": "", "disco": "", "gamer": False}
 
         try:
+            from datetime import datetime
             from app3 import _load_module_statuses
+
             st = _load_module_statuses() or {}
             rotulos = {
                 "clean": "Limpeza",
@@ -698,12 +704,24 @@ class Bridge(QObject):
                 item = st.get(chave)
                 if not item:
                     continue
+
+                # So conta o que rodou nesta sessao. O status fica salvo
+                # para sempre; sem este filtro, uma otimizacao de ontem
+                # apareceria como se tivesse acabado de acontecer.
+                quando = str(item.get("timestamp", ""))
+                try:
+                    ts = datetime.strptime(quando, "%d/%m/%Y \u00e0s %H:%M")
+                except ValueError:
+                    continue
+                if ts < self._session_start.replace(second=0, microsecond=0):
+                    continue
+
                 msg = str(item.get("message", "")).replace("\u2713", "").strip()
                 if msg:
                     out["acoes"].append({
                         "modulo": rotulo,
                         "texto": msg,
-                        "quando": item.get("timestamp", ""),
+                        "quando": quando,
                     })
         except Exception:
             pass

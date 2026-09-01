@@ -321,7 +321,7 @@
         }).join('');
         box.style.display = 'block';
         document.getElementById('bye-sub').textContent =
-          'Resumo das ultimas acoes neste PC';
+          r.acoes.length === 1 ? 'O que foi feito agora' : 'O que foi feito nesta sessao';
       }
 
       if (r && (r.ram || r.disco)) {
