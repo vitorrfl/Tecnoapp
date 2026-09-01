@@ -1586,6 +1586,15 @@
 
   // Expostos em window: o Python empurra o progresso via runJavaScript
   // porque os sinais de progresso do QWebChannel nao chegavam ao JS.
+  // Falha no download: devolve o botao ao estado clicavel, senao o
+  // usuario fica sem como tentar de novo sem reabrir o app.
+  window.onUpdateFailed = function () {
+    const btn = document.getElementById('update-btn');
+    if (btn) { btn.disabled = false; btn.textContent = 'TENTAR DE NOVO'; }
+    const sb = document.getElementById('sidebar-update');
+    if (sb) sb.style.display = 'block';
+  };
+
   window.onUpdateAvailable = showUpdateBanner;
   window.onUpdateProgress = onUpdateProgress;
   window.onUpdateStatus = onUpdateStatus;

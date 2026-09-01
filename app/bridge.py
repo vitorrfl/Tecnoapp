@@ -549,8 +549,19 @@ class Bridge(QObject):
             self.updateStatus.emit("Nenhuma atualizacao pendente.")
             self._js("onUpdateStatus", "Nenhuma atualizacao pendente.")
             return
-        if self._downloader and self._downloader.isRunning():
-            return
+        # Um downloader que ja terminou (com sucesso ou falha) nao pode
+        # bloquear uma nova tentativa: era o caso em que o botao parava de
+        # responder e so reiniciar o app resolvia.
+        if self._downloader is not None:
+            if self._downloader.isRunning():
+                return
+            try:
+                self._downloader.wait(2000)
+                self._downloader.deleteLater()
+            except Exception:
+                pass
+            self._downloader = None
+
         self.updateStatus.emit("Baixando atualizacao...")
         self._js("onUpdateStatus", "Baixando atualizacao...")
         self._downloader = UpdateDownloader(self._update_info["url"])
@@ -565,7 +576,9 @@ class Bridge(QObject):
         self._downloader.finished_ok.connect(self._on_download_done)
         self._downloader.failed.connect(
             lambda e: (self.updateStatus.emit(f"Falha no download: {e}"),
-                       self._js("onUpdateStatus", f"Falha no download: {e}")))
+                       self._js("onUpdateStatus", f"Falha no download: {e}"),
+                       self._js("onUpdateFailed"),
+                       setattr(self, "_downloader", None)))
         self._downloader.start()
 
     def _on_download_done(self, path: str):
