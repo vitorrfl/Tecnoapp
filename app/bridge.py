@@ -479,38 +479,55 @@ class Bridge(QObject):
         self._checker = UpdateChecker()
         self._checker.update_available.connect(self._on_update_available)
         self._checker.up_to_date.connect(
-            lambda: self.updateStatus.emit("Voce esta na versao mais recente."))
+            lambda: (self.updateStatus.emit("Voce esta na versao mais recente."),
+                     self._js("onUpdateStatus", "Voce esta na versao mais recente.")))
         self._checker.check_failed.connect(
-            lambda why: self.updateStatus.emit(f"Nao foi possivel checar ({why})."))
+            lambda why: (self.updateStatus.emit(f"Nao foi possivel checar ({why})."),
+                         self._js("onUpdateStatus", f"Nao foi possivel checar ({why})."))) 
         self._checker.start()
 
     def _on_update_available(self, ver, notes, url, size):
         self._update_info = {"version": ver, "notes": notes, "url": url, "size": size}
         self.updateAvailable.emit(self._update_info)
+        # Push direto: os sinais do QWebChannel nao chegam ao JS, entao o
+        # banner nunca aparecia mesmo com a release detectada no Python.
+        self._js("onUpdateAvailable", self._update_info)
+
+    @Slot(result="QVariant")
+    def getUpdateInfo(self):
+        """Atualizacao pendente, ou None. Usado pelo botao da sidebar."""
+        return self._update_info
 
     @Slot()
     def downloadUpdate(self):
         """Baixa o instalador da versao detectada e executa ao terminar."""
         if not self._update_info:
             self.updateStatus.emit("Nenhuma atualizacao pendente.")
+            self._js("onUpdateStatus", "Nenhuma atualizacao pendente.")
             return
         if self._downloader and self._downloader.isRunning():
             return
         self.updateStatus.emit("Baixando atualizacao...")
+        self._js("onUpdateStatus", "Baixando atualizacao...")
         self._downloader = UpdateDownloader(self._update_info["url"])
         self._downloader.progress.connect(self.updateProgress.emit)
+        self._downloader.progress.connect(
+            lambda pct: self._js("onUpdateProgress", int(pct)))
         self._downloader.finished_ok.connect(self._on_download_done)
         self._downloader.failed.connect(
-            lambda e: self.updateStatus.emit(f"Falha no download: {e}"))
+            lambda e: (self.updateStatus.emit(f"Falha no download: {e}"),
+                       self._js("onUpdateStatus", f"Falha no download: {e}")))
         self._downloader.start()
 
     def _on_download_done(self, path: str):
         self.updateStatus.emit("Instalando... o app vai fechar.")
+        self._js("onUpdateStatus", "Instalando... o app vai fechar.")
         if run_installer_and_exit(path):
             if self._main:
                 self._main.close()
         else:
             self.updateStatus.emit("Nao foi possivel iniciar o instalador.")
+            self._js("onUpdateStatus", "Nao foi possivel iniciar o instalador.")
 
     # ── Debloat ─────────────────────────────────────────────────
     def _on_bloat(self, result: dict):

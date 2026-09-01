@@ -466,10 +466,40 @@
 
   // ── Updater ───────────────────────────────────────────────────
   let updatePending = false;
+  let updateInfo = null;
+
+  // Modal com as notas da versao, aberto pelo botao da sidebar.
+  window.openUpdateModal = function () {
+    if (!updateInfo) return;
+    const mb = updateInfo.size
+      ? ' (' + (updateInfo.size / (1024 * 1024)).toFixed(0) + ' MB)' : '';
+    let corpo = 'Uma versao nova do TecnoApp esta disponivel' + mb + '.';
+    if (updateInfo.notes) {
+      const n = String(updateInfo.notes).replace(/[#>*`]/g, '').trim();
+      corpo += '\n\n' + n.slice(0, 600) + (n.length > 600 ? '\n...' : '');
+    }
+    corpo += '\n\nO download comeca agora e o app fecha para instalar.';
+    tecConfirm({
+      title: 'Atualizar para a v' + updateInfo.version + '?',
+      body: corpo,
+      yes: 'BAIXAR E INSTALAR'
+    }, function () { window.startUpdate(); });
+  };
 
   function showUpdateBanner(info) {
     if (!info) return;
     updatePending = true;
+    updateInfo = info;
+
+    // Botao fixo na sidebar: o banner do topo pode ser fechado, e ai o
+    // usuario perderia a atualizacao de vista.
+    const sb = document.getElementById('sidebar-update');
+    const sbv = document.getElementById('sidebar-update-ver');
+    if (sb) sb.style.display = 'block';
+    if (sbv) {
+      const mb = info.size ? ' · ' + (info.size / (1024 * 1024)).toFixed(0) + ' MB' : '';
+      sbv.textContent = 'v' + info.version + mb;
+    }
     const el = document.getElementById('update-banner');
     const tx = document.getElementById('update-text');
     if (tx) {
@@ -1191,6 +1221,9 @@
 
   // Expostos em window: o Python empurra o progresso via runJavaScript
   // porque os sinais de progresso do QWebChannel nao chegavam ao JS.
+  window.onUpdateAvailable = showUpdateBanner;
+  window.onUpdateProgress = onUpdateProgress;
+  window.onUpdateStatus = onUpdateStatus;
   window.onBloatProgress = onBloatProgress;
   window.onBloatItem = onBloatItem;
   window.onBloatFinished = onBloatFinished;
@@ -1280,6 +1313,13 @@
     // Versao no rodape + checagem automatica no start
     if (b.getVersion) b.getVersion(v => setText('.version-tag', 'v ' + v + ' · Tecnosup'));
     if (b.checkForUpdates) b.checkForUpdates();
+    // A checagem roda em thread e pode terminar antes do JS assinar; busca
+    // o resultado depois para nao perder a notificacao.
+    if (b.getUpdateInfo) {
+      setTimeout(function () {
+        b.getUpdateInfo(function (info) { if (info) showUpdateBanner(info); });
+      }, 4000);
+    }
 
     return true;
   }
