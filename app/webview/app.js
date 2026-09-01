@@ -783,8 +783,10 @@
       ? ' (' + (updateInfo.size / (1024 * 1024)).toFixed(0) + ' MB)' : '';
     let corpo = 'Uma versao nova do TecnoApp esta disponivel' + mb + '.';
     if (updateInfo.notes) {
+      // Limite maior porque as notas podem juntar varias versoes puladas.
+      // O corpo do modal ja rola sozinho quando passa da altura.
       const n = String(updateInfo.notes).replace(/[#>*`]/g, '').trim();
-      corpo += '\n\n' + n.slice(0, 600) + (n.length > 600 ? '\n...' : '');
+      corpo += '\n\n' + n.slice(0, 2000) + (n.length > 2000 ? '\n...' : '');
     }
     corpo += '\n\nO download comeca agora e o app fecha para instalar.';
     tecConfirm({
