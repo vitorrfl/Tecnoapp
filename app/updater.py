@@ -19,6 +19,7 @@ import os
 import re
 import subprocess
 import tempfile
+import time
 import urllib.request
 import urllib.error
 
@@ -159,36 +160,99 @@ class UpdateChecker(QThread):
 
 
 class UpdateDownloader(QThread):
-    """Baixa o instalador reportando progresso."""
+    """
+    Baixa o instalador reportando progresso, retomando de onde parou.
+
+    Sao ~126 MB: em conexao instavel a queda no meio e comum (WinError
+    10054, "conexao fechada pelo host remoto"). Sem retomada, cada queda
+    jogava fora tudo o que ja tinha sido baixado e o usuario via um erro
+    tecnico sem saida.
+    """
 
     progress = Signal(int)        # 0-100
     finished_ok = Signal(str)     # caminho do arquivo baixado
     failed = Signal(str)
+    retrying = Signal(int, int)   # (tentativa, total) — para a UI avisar
+
+    TENTATIVAS = 4
+    ESPERA_S = 3
 
     def __init__(self, url: str, parent=None):
         super().__init__(parent)
         self._url = url
 
-    def run(self):
+    def _tamanho_remoto(self) -> int:
+        """Tamanho total do arquivo, para saber quando terminou."""
         try:
-            dest = os.path.join(tempfile.gettempdir(), f"TecnoApp-Setup-{os.getpid()}.exe")
-            req = urllib.request.Request(self._url, headers=_UA)
-            with urllib.request.urlopen(req, timeout=30) as r:
-                total = int(r.headers.get("Content-Length") or 0)
-                done = 0
-                with open(dest, "wb") as f:
-                    while True:
-                        chunk = r.read(65536)
-                        if not chunk:
-                            break
-                        f.write(chunk)
-                        done += len(chunk)
-                        if total > 0:
-                            self.progress.emit(min(100, int(done * 100 / total)))
-            self.progress.emit(100)
-            self.finished_ok.emit(dest)
-        except Exception as e:
-            self.failed.emit(f"{type(e).__name__}: {e}")
+            req = urllib.request.Request(self._url, headers=_UA, method="HEAD")
+            with urllib.request.urlopen(req, timeout=20) as r:
+                return int(r.headers.get("Content-Length") or 0)
+        except Exception:
+            return 0
+
+    def run(self):
+        # Nome estavel (sem PID): permite retomar mesmo entre tentativas.
+        dest = os.path.join(tempfile.gettempdir(), "TecnoApp-Setup-update.exe")
+        total = self._tamanho_remoto()
+        ultimo_erro = ""
+
+        for tentativa in range(1, self.TENTATIVAS + 1):
+            baixado = os.path.getsize(dest) if os.path.exists(dest) else 0
+
+            # Ja completo de uma tentativa anterior
+            if total and baixado >= total:
+                self.progress.emit(100)
+                self.finished_ok.emit(dest)
+                return
+
+            if tentativa > 1:
+                self.retrying.emit(tentativa, self.TENTATIVAS)
+                time.sleep(self.ESPERA_S)
+
+            try:
+                headers = dict(_UA)
+                if baixado:
+                    # Range: pede so o que falta em vez de recomecar
+                    headers["Range"] = f"bytes={baixado}-"
+
+                req = urllib.request.Request(self._url, headers=headers)
+                with urllib.request.urlopen(req, timeout=60) as r:
+                    # 206 = servidor aceitou continuar; 200 = mandou tudo de novo
+                    if baixado and getattr(r, "status", 200) != 206:
+                        baixado = 0
+                    if not total:
+                        total = int(r.headers.get("Content-Length") or 0) + baixado
+
+                    modo = "ab" if baixado else "wb"
+                    with open(dest, modo) as f:
+                        while True:
+                            chunk = r.read(65536)
+                            if not chunk:
+                                break
+                            f.write(chunk)
+                            baixado += len(chunk)
+                            if total > 0:
+                                self.progress.emit(min(100, int(baixado * 100 / total)))
+
+                # Confere o tamanho: arquivo truncado nao pode virar instalador
+                final = os.path.getsize(dest) if os.path.exists(dest) else 0
+                if total and final < total:
+                    ultimo_erro = "download incompleto"
+                    continue
+
+                self.progress.emit(100)
+                self.finished_ok.emit(dest)
+                return
+
+            except Exception as e:
+                ultimo_erro = f"{type(e).__name__}"
+                continue
+
+        # Esgotadas as tentativas: mensagem util, nao o erro cru do Python
+        self.failed.emit(
+            "A conexao caiu durante o download. Verifique a internet e tente "
+            f"de novo, ou baixe manualmente pelo GitHub. ({ultimo_erro})"
+        )
 
 
 def run_installer_and_exit(installer_path: str) -> bool:

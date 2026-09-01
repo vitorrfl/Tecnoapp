@@ -555,6 +555,11 @@ class Bridge(QObject):
         self._js("onUpdateStatus", "Baixando atualizacao...")
         self._downloader = UpdateDownloader(self._update_info["url"])
         self._downloader.progress.connect(self.updateProgress.emit)
+        # Avisa quando a conexao cai e o download retoma, para o usuario
+        # nao achar que travou.
+        self._downloader.retrying.connect(
+            lambda n, t: self._js("onUpdateStatus",
+                                  f"Conexao instavel — retomando ({n}/{t})..."))
         self._downloader.progress.connect(
             lambda pct: self._js("onUpdateProgress", int(pct)))
         self._downloader.finished_ok.connect(self._on_download_done)
