@@ -228,14 +228,6 @@
           <div class="center" style="margin-top:10px"><span class="metric metric-value">0</span><span class="metric-unit"> %</span></div>
           <div class="progress-track" style="margin-top:10px"><div class="progress-fill" data-pct="0" style="width:0%"></div></div>
           <div class="caption center" style="margin-top:6px" data-bind="ram_sub">—</div>
-        <button id="mem-free-btn" onclick="window.liberarMemoria()"
-                style="margin-top:9px;width:100%;padding:6px 10px;font-size:10px;
-                       font-weight:700;letter-spacing:.3px;color:var(--cyan);
-                       background:rgba(14,179,255,.07);
-                       border:1px solid rgba(14,179,255,.28);border-radius:6px;
-                       cursor:pointer;transition:background .15s">
-          LIBERAR MEMÓRIA
-        </button>
         </div>
         <div class="card flex-1" data-metric="disk">
           <div class="label">DISCO C:</div>
@@ -256,10 +248,24 @@
           <div class="body" style="flex:1">Remova arquivos temporários e libere espaço em disco.</div>
           <button class="btn-secondary" onclick="navigate('limpeza')">Limpar agora →</button>
         </div>
-        <div class="card-hero flex-1 col" style="gap:10px">
+        <div id="card-otimizacao" class="card-hero flex-1 col" style="gap:10px">
           <div class="label">OTIMIZAÇÃO</div>
           <div class="body" style="flex:1">Ative tweaks de desempenho e plano de energia.</div>
           <button class="btn-secondary" onclick="navigate('otimizacao')">Otimizar →</button>
+        </div>
+
+        <!-- Ocupa o lugar do card acima quando a memoria esta sob pressao.
+             Fora disso nao aparece: liberar memoria com RAM folgada nao
+             tem efeito e so gera cliques inuteis. -->
+        <div id="card-memoria" class="card-hero flex-1 col"
+             style="gap:10px;display:none;border-color:#e8a33d">
+          <div class="label" style="color:#e8a33d">MEMÓRIA CHEIA</div>
+          <div class="body" style="flex:1" data-bind="mem_card_txt">
+            A memória está no limite. Libere o que os programas reservaram e não usam.
+          </div>
+          <button id="mem-free-btn" class="btn-secondary"
+                  style="border-color:#e8a33d;color:#e8a33d"
+                  onclick="window.liberarMemoria()">Liberar memória →</button>
         </div>
         <div class="card-hero flex-1 col" style="gap:10px">
           <div class="label">REPAROS</div>

@@ -6,6 +6,13 @@
 (function () {
   'use strict';
 
+  // Limites do card de memoria. Ficam no topo porque applySnapshot roda a
+  // cada segundo e chama atualizarCardMemoria: declarados mais abaixo,
+  // caiam na zona morta temporal do const e o card nunca aparecia.
+  const MEM_LIMITE = 75;       // % de RAM a partir do qual vale oferecer
+  const MEM_COOLDOWN = 120000; // 2 min — rodar em sequencia nao rende nada
+  let memUltimaVez = 0;
+
   // -- Seletor de processos -------------------------------------
   // Substitui a digitacao do nome do .exe: ninguem sabe que o processo do
   // Valorant chama VALORANT-Win64-Shipping.exe, e um nome digitado errado
@@ -568,47 +575,92 @@
     setBind('hw_disk', `${fmtBytes(s.disk.used)} / ${fmtBytes(s.disk.total)}`);
 
     aplicarDiagnostico(s);
+    if (s.ram) atualizarCardMemoria(s.ram.pct);
   }
   window.applySnapshot = applySnapshot;
 
 
 
   // -- Liberar memoria ------------------------------------------
+  // O card so aparece sob pressao de RAM, e no lugar do de Otimizacao.
+
+  function atualizarCardMemoria(pct) {
+    const cardMem = document.getElementById('card-memoria');
+    const cardOpt = document.getElementById('card-otimizacao');
+    if (!cardMem || !cardOpt) return;
+
+    const emCooldown = (Date.now() - memUltimaVez) < MEM_COOLDOWN;
+    const mostrar = pct >= MEM_LIMITE;
+
+    if (mostrar) {
+      cardMem.style.display = 'flex';
+      cardOpt.style.display = 'none';
+
+      const btn = document.getElementById('mem-free-btn');
+      if (btn && !btn.dataset.ocupado) {
+        if (emCooldown) {
+          const resta = Math.ceil((MEM_COOLDOWN - (Date.now() - memUltimaVez)) / 1000);
+          btn.disabled = true;
+          btn.style.opacity = '.45';
+          btn.style.cursor = 'not-allowed';
+          btn.textContent = 'aguarde ' + resta + 's';
+          setBind('mem_card_txt',
+            'Memória liberada há pouco. O que os programas reservam de novo '
+            + 'leva algum tempo para valer outra liberação.');
+        } else {
+          btn.disabled = false;
+          btn.style.opacity = '1';
+          btn.style.cursor = 'pointer';
+          btn.textContent = 'Liberar memória →';
+          setBind('mem_card_txt',
+            'A memória está em ' + Math.round(pct) + '%. Libere o que os '
+            + 'programas reservaram e não usam.');
+        }
+      }
+    } else {
+      cardMem.style.display = 'none';
+      cardOpt.style.display = 'flex';
+    }
+  }
+
+  window.atualizarCardMemoria = atualizarCardMemoria;
+
   window.liberarMemoria = function () {
     if (!window.bridge || !window.bridge.liberarMemoria) return;
     const btn = document.getElementById('mem-free-btn');
+    if (btn && btn.disabled) return;
+
     if (btn) {
+      btn.dataset.ocupado = '1';
       btn.disabled = true;
       btn.style.opacity = '.55';
       btn.style.cursor = 'wait';
-      btn.textContent = 'LIBERANDO...';
+      btn.textContent = 'liberando...';
     }
 
     window.bridge.liberarMemoria(function (r) {
+      memUltimaVez = Date.now();
       if (!btn) return;
-      btn.disabled = false;
-      btn.style.opacity = '1';
-      btn.style.cursor = 'pointer';
 
       if (r && r.ok) {
         const ganho = r.antes_pct - r.depois_pct;
-        btn.textContent = ganho >= 1
-          ? '\u2713 ' + r.humano + ' liberados'
-          : '\u2713 memória já estava enxuta';
+        btn.textContent = ganho >= 1 ? '\u2713 ' + r.humano + ' liberados'
+                                     : '\u2713 já estava enxuta';
         btn.style.color = 'var(--state-on)';
-        btn.style.borderColor = 'rgba(76,175,80,.35)';
-        btn.style.background = 'rgba(76,175,80,.07)';
+        btn.style.borderColor = 'rgba(76,175,80,.45)';
+        setBind('mem_card_txt', ganho >= 1
+          ? 'Memória caiu de ' + r.antes_pct + '% para ' + r.depois_pct + '%.'
+          : 'Não havia memória ociosa para devolver.');
       } else {
-        btn.textContent = 'não foi possível liberar';
+        btn.textContent = 'não foi possível';
         btn.style.color = '#e8a33d';
       }
 
-      // Volta ao normal para poder rodar de novo.
+      // Libera o botao para o ciclo normal (que respeitara o cooldown).
       setTimeout(function () {
-        btn.textContent = 'LIBERAR MEMÓRIA';
-        btn.style.color = 'var(--cyan)';
-        btn.style.borderColor = 'rgba(14,179,255,.28)';
-        btn.style.background = 'rgba(14,179,255,.07)';
+        delete btn.dataset.ocupado;
+        btn.style.color = '#e8a33d';
+        btn.style.borderColor = '#e8a33d';
       }, 4000);
     });
   };

@@ -113,6 +113,14 @@ class Bridge(QObject):
         page = getattr(self, "_page", None)
         if page is None:
             return
+        # A pagina pode ja ter sido destruida enquanto o timer ainda
+        # dispara (fechamento do app); chamar nela levanta RuntimeError.
+        try:
+            if not page.parent() and not hasattr(page, "runJavaScript"):
+                return
+        except RuntimeError:
+            self._page = None
+            return
         try:
             payload = ", ".join(json.dumps(a, ensure_ascii=False) for a in args)
             page.runJavaScript(f"window.{fn} && window.{fn}({payload});")
@@ -162,7 +170,12 @@ class Bridge(QObject):
 
     def _tick(self):
         try:
-            self.metricsUpdated.emit(self._snapshot())
+            snap = self._snapshot()
+            self.metricsUpdated.emit(snap)
+            # Push direto, pelo mesmo motivo dos demais fluxos: a entrega
+            # por sinal do QWebChannel nao e confiavel aqui, e sem isso os
+            # cards congelam no ultimo valor recebido.
+            self._js("applySnapshot", snap)
         except Exception as e:
             print(f"[bridge] tick error: {e}")
 
