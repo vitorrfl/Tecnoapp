@@ -604,19 +604,28 @@ html, body {
    Discreto por padrao; ganha cor no hover para nao competir com
    as acoes principais.
    ────────────────────────────────────────────────────────────── */
+.sidebar-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* Sem moldura: dois icones apagados que so acendem no hover. Com borda
+   viravam mais dois botoes concorrendo com SAIR logo acima. */
 .social-btn {
   background: transparent;
-  border: 1px solid var(--border-subtle);
-  border-radius: 7px;
+  border: 0;
   color: var(--fg-muted);
-  padding: 6px 10px;
+  opacity: .55;
+  padding: 3px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  transition: color .16s ease, border-color .16s ease, background .16s ease;
+  transition: color .16s ease, opacity .16s ease;
 }
 .social-btn:hover {
   color: var(--cyan);
-  border-color: rgba(14, 179, 255, .4);
-  background: rgba(14, 179, 255, .06);
+  opacity: 1;
 }
