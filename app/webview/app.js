@@ -1296,15 +1296,27 @@
       const rec = c.default
         ? '<span style="font-size:9px;color:var(--state-on);font-weight:700">RECOMENDADO</span>'
         : '';
-      // Selo de estado real: o usuario precisa ver o que ja esta ativo,
-      // senao reaplica indefinidamente sem retorno.
-      const sel = c.applied === true
-        ? '<span style="font-size:9px;color:var(--state-on);font-weight:700;'
-          + 'border:1px solid var(--state-on);border-radius:3px;padding:1px 5px">&#10003; ATIVO</span>'
-        : '';
+      // Tres estados diferentes, e nao dois:
+      //   manutencao  -> roda e acaba, nao "fica ligada" (defrag/TRIM)
+      //   ativo       -> tweak ja aplicado no sistema
+      //   pendente    -> ainda nao aplicado
+      const sel = c.maintenance
+        ? '<span style="font-size:9px;color:var(--cyan);font-weight:700;'
+          + 'border:1px solid var(--cyan);border-radius:3px;padding:1px 5px">MANUTENÇÃO</span>'
+          + (c.last_run
+            ? '<span style="font-size:9px;color:var(--fg-muted)">última vez: '
+              + c.last_run + '</span>'
+            : '')
+        : (c.applied === true
+          ? '<span style="font-size:9px;color:var(--state-on);font-weight:700;'
+            + 'border:1px solid var(--state-on);border-radius:3px;padding:1px 5px">&#10003; ATIVO</span>'
+          : '');
       return '<label style="display:flex;gap:12px;align-items:flex-start;padding:11px 14px;'
         + 'border-bottom:1px solid var(--border-subtle);cursor:pointer">'
-        + '<input type="checkbox" data-opt="' + i + '" ' + on + ' style="margin-top:3px;flex-shrink:0">'
+        + '<input type="checkbox" data-opt="' + i + '" ' + on
+        + (c.applied === true ? ' disabled' : '')
+        + ' style="margin-top:3px;flex-shrink:0'
+        + (c.applied === true ? ';opacity:.45;cursor:not-allowed' : '') + '">'
         + '<span style="flex:1;min-width:0">'
         + '<span style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap">'
         + '<span style="font-size:11px;color:var(--fg-primary);font-weight:600">' + c.label + '</span>'
@@ -1341,21 +1353,33 @@
     if (!btn) return;
 
     // Quantas das marcadas ainda nao estao aplicadas
+    // Tweaks marcados que ainda nao estao ativos no sistema
     const pendentes = optCats.filter(function (c) {
-      return optChecked.has(c.id) && c.applied !== true;
+      return optChecked.has(c.id) && !c.maintenance && c.applied !== true;
     }).length;
+    // Manutencao pode rodar sempre: nunca fica "aplicada"
+    const manutencoes = optCats.filter(function (c) {
+      return optChecked.has(c.id) && c.maintenance;
+    }).length;
+    const totalAcoes = pendentes + manutencoes;
 
     if (!optChecked.size) {
       btn.disabled = true; btn.style.opacity = '.5'; btn.style.cursor = 'not-allowed';
       btn.textContent = 'SELECIONE UMA OTIMIZACAO';
       setBind('opt_hint', 'Nenhuma otimizacao marcada.');
-    } else if (pendentes === 0) {
+    } else if (totalAcoes === 0) {
       btn.disabled = true; btn.style.opacity = '.5'; btn.style.cursor = 'not-allowed';
-      btn.textContent = 'TUDO JA APLICADO';
-      setBind('opt_hint', 'As otimizacoes marcadas ja estao ativas no sistema.');
+      btn.textContent = 'TUDO JÁ APLICADO';
+      setBind('opt_hint', 'As otimizações marcadas já estão ativas no sistema.');
+    } else if (pendentes === 0 && manutencoes > 0) {
+      // So manutencao: o texto diz executar, nao aplicar
+      btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer';
+      btn.textContent = manutencoes === 1 ? 'EXECUTAR MANUTENÇÃO' : 'EXECUTAR MANUTENÇÕES';
+      setBind('opt_hint', 'Manutenção pode ser executada novamente quando quiser.');
     } else {
       btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer';
-      btn.textContent = 'APLICAR ' + pendentes + (pendentes === 1 ? ' OTIMIZACAO' : ' OTIMIZACOES');
+      btn.textContent = 'APLICAR ' + totalAcoes
+        + (totalAcoes === 1 ? ' OTIMIZAÇÃO' : ' OTIMIZAÇÕES');
       setBind('opt_hint', '');
     }
   }
