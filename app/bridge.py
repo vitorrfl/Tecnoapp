@@ -248,6 +248,10 @@ class Bridge(QObject):
                 "default": bool(c.get("default")),
                 "checked": on,
                 "applied": aplicadas.get(cid),   # True / False / None (nao aplicavel)
+                # Manutencao (defrag/TRIM) nao tem estado ligado/desligado:
+                # roda e acaba. O que importa e quando rodou pela ultima vez.
+                "maintenance": aplicadas.get(cid) is None,
+                "last_run": (state.get("last_run") or {}).get(cid, ""),
             })
 
         reais = [c for c in cats if c["applied"] is True]
@@ -294,6 +298,7 @@ class Bridge(QObject):
             selected = ({cid for cid, v in saved.items() if v} if saved
                         else {c["id"] for c in _OPTIMIZE_CATEGORIES if c.get("default")})
 
+        self._last_optimize_ids = list(selected)
         self._optimize_worker = OptimizeWorker(selected, mode=str(mode or "apply"))
         self._optimize_worker.step_done.connect(
             lambda lbl, ok, det: (self.optimizeStep.emit(str(lbl), bool(ok), str(det or "")),
@@ -312,6 +317,21 @@ class Bridge(QObject):
         try:
             from app3 import _save_module_status
             _save_module_status("optimize", f"✓  {applied} otimizacoes aplicadas")
+        except Exception:
+            pass
+
+        # Registra quando cada manutencao rodou: defrag/TRIM nao deixam
+        # estado consultavel no sistema, so a data da ultima execucao.
+        try:
+            from datetime import datetime
+            from app3 import _load_optimize_state, _save_optimize_state
+            st = _load_optimize_state() or {}
+            lr = st.get("last_run") or {}
+            agora = datetime.now().strftime("%d/%m/%Y as %H:%M")
+            for cid in (self._last_optimize_ids or []):
+                lr[cid] = agora
+            st["last_run"] = lr
+            _save_optimize_state(st)
         except Exception:
             pass
         payload = {"ok": True, "applied": int(applied or 0), "failed": int(failed or 0)}
