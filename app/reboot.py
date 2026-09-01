@@ -109,3 +109,13 @@ def came_from_reboot() -> str | None:
         if arg.startswith("--pos-reboot="):
             return arg.split("=", 1)[1] or None
     return None
+
+
+def came_from_update() -> bool:
+    """
+    True quando o app foi reaberto pelo instalador apos uma atualizacao.
+
+    O front usa isso para confirmar ao usuario que a nova versao esta
+    rodando, em vez de a atualizacao terminar em silencio.
+    """
+    return "--pos-update" in sys.argv[1:]

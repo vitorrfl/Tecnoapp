@@ -72,6 +72,30 @@ def is_newer(remote: str, local: str = APP_VERSION) -> bool:
         return False
 
 
+
+def _juntar_notas(releases: list) -> str:
+    """
+    Junta as notas de todas as versoes pendentes, da mais nova para a mais
+    antiga.
+
+    Com uma so, devolve o texto puro. Com varias, prefixa cada bloco com o
+    nome da versao para o usuario ver o que entrou em cada uma.
+    """
+    if not releases:
+        return ""
+    if len(releases) == 1:
+        return releases[0].get("body") or ""
+
+    partes = []
+    for r in releases:
+        corpo = (r.get("body") or "").strip()
+        if not corpo:
+            continue
+        titulo = (r.get("tag_name") or "").lstrip("vV")
+        partes.append("[ versao " + titulo + " ]\n" + corpo)
+    return "\n\n".join(partes)
+
+
 class UpdateChecker(QThread):
     """Consulta a release mais recente. Não bloqueia a UI."""
 
@@ -94,13 +118,22 @@ class UpdateChecker(QThread):
             return
 
         try:
-            # /releases devolve lista ordenada da mais recente para a mais antiga
+            # /releases vem ordenado da mais recente para a mais antiga
             if isinstance(data, list):
-                data = next((r for r in data if not r.get("draft")), None)
-            if not data:
+                lista = [r for r in data if not r.get("draft")]
+            else:
+                lista = [data] if data else []
+
+            if not lista:
                 self.up_to_date.emit()
                 return
 
+            # Todas as versoes mais novas que a instalada, nao so a ultima:
+            # quem pula da 2.0.0 para a 2.0.2 precisa saber o que entrou na
+            # 2.0.1 tambem.
+            pendentes = [r for r in lista if is_newer(r.get("tag_name") or "")]
+
+            data = lista[0]
             tag = data.get("tag_name") or ""
             if not tag or not is_newer(tag):
                 self.up_to_date.emit()
@@ -119,7 +152,8 @@ class UpdateChecker(QThread):
                 self.check_failed.emit("release sem instalador .exe")
                 return
 
-            self.update_available.emit(tag.lstrip("vV"), data.get("body") or "", url, size)
+            notas = _juntar_notas(pendentes)
+            self.update_available.emit(tag.lstrip("vV"), notas, url, size)
         except Exception as e:
             self.check_failed.emit(f"{type(e).__name__}")
 
@@ -167,8 +201,11 @@ def run_installer_and_exit(installer_path: str) -> bool:
     try:
         if not os.path.isfile(installer_path):
             return False
+        # Sem /RESTARTAPPLICATIONS: ele so reinicia o que o Restart Manager
+        # fechou, e o app fecha sozinho logo apos esta chamada. Quem reabre
+        # e a entrada [Run] do instalador marcada com Check: EhSilencioso.
         subprocess.Popen(
-            [installer_path, "/SILENT", "/CLOSEAPPLICATIONS", "/RESTARTAPPLICATIONS"],
+            [installer_path, "/SILENT", "/CLOSEAPPLICATIONS"],
             close_fds=True,
         )
         return True

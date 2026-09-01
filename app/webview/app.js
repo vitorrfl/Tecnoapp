@@ -1683,6 +1683,23 @@
       const bv = document.getElementById('boot-version');
       if (bv) bv.textContent = 'v' + v + ' · ';
     });
+    // Reaberto apos atualizar: confirma que a versao nova esta rodando,
+    // senao o processo terminaria em silencio e sem retorno.
+    if (b.getPostUpdateFlag) {
+      b.getPostUpdateFlag(function (veio) {
+        if (!veio) return;
+        if (b.getVersion) {
+          b.getVersion(function (v) {
+            tecConfirm({
+              title: 'Atualizado para a v' + v,
+              body: 'O TecnoApp foi atualizado e já está rodando na versão nova.',
+              yes: 'OK'
+            });
+          });
+        }
+      });
+    }
+
     if (b.checkForUpdates) b.checkForUpdates();
     // A checagem roda em thread e pode terminar antes do JS assinar; busca
     // o resultado depois para nao perder a notificacao.

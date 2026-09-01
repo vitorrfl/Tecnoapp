@@ -71,9 +71,16 @@ Name: "{autodesktop}\{#AppName}";        Filename: "{app}\{#AppExeName}"; \
     Tasks: desktopicon
 
 [Run]
+; Instalacao manual: caixa "Executar agora" ao final do assistente.
 Filename: "{app}\{#AppExeName}"; \
     Description: "Executar o {#AppName} agora"; \
     Flags: nowait postinstall skipifsilent
+
+; Atualizacao automatica pelo app (/SILENT): reabre sozinho.
+; Precisa ser uma entrada separada porque a de cima tem skipifsilent, que
+; a suprime justamente no modo usado pelo updater.
+Filename: "{app}\{#AppExeName}"; Parameters: "--pos-update"; \
+    Flags: nowait runasoriginaluser; Check: EhSilencioso
 
 [UninstallDelete]
 ; Estado do app (snapshots do Modo Gamer, preferencias).
@@ -81,3 +88,12 @@ Filename: "{app}\{#AppExeName}"; \
 ; para conseguir reverter tweaks aplicados. Descomente para limpar tudo:
 ; Type: filesandordirs; Name: "{userappdata}\TecnoApp"
 Type: filesandordirs; Name: "{app}\_internal\__pycache__"
+
+
+[Code]
+// True quando a instalacao roda em /SILENT ou /VERYSILENT — o caso da
+// atualizacao disparada pelo proprio app.
+function EhSilencioso(): Boolean;
+begin
+  Result := WizardSilent();
+end;

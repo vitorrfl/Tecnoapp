@@ -808,6 +808,15 @@ class Bridge(QObject):
         r["humano"] = formatar(r["liberado"])
         return r
 
+    @Slot(result=bool)
+    def getPostUpdateFlag(self):
+        """True se o app acabou de ser reaberto por uma atualizacao."""
+        try:
+            from reboot import came_from_update
+            return bool(came_from_update())
+        except Exception:
+            return False
+
     # ── Contato ─────────────────────────────────────────────────
     # Allowlist: o JS manda um apelido, nao uma URL. Assim nao ha como uma
     # falha no front virar "abre qualquer coisa no navegador do cliente".
