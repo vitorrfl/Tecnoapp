@@ -177,11 +177,6 @@
       ESPECIFICAÇÕES
     </button>
 
-    <button class="menu-btn" data-screen="benchmark" onclick="navigate('benchmark')">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
-      BENCHMARK
-    </button>
-
     <button class="menu-btn-gamer" data-screen="gamer" onclick="navigate('gamer')">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="12" x2="18" y2="12"/><line x1="12" y1="6" x2="12" y2="18"/><rect x="2" y="6" width="20" height="12" rx="2"/></svg>
       MODO GAMER
@@ -497,47 +492,6 @@
       </div>
 
       <div class="terminal" id="deep-terminal" style="display:none;margin-top:14px"></div>
-    </section>
-
-    <!-- ─────────── BENCHMARK ─────────── -->
-    <section id="screen-benchmark" class="screen">
-      <div class="h1">Benchmark</div>
-      <div class="subtitle" style="margin-bottom:18px">
-        Mede o desempenho do PC em processador, memória e disco. O valor está
-        em comparar antes e depois das otimizações, não no número isolado.
-      </div>
-
-      <div class="card-hero card-hero-center" style="margin-bottom:16px">
-        <div class="label">PONTUAÇÃO GERAL</div>
-        <div style="font-size:44px;font-weight:700;color:var(--fg-primary);line-height:1.1">
-          <span data-bind="bench_total">—</span>
-        </div>
-        <div class="body" data-bind="bench_quando">Nenhuma medição ainda</div>
-
-        <div class="progress-track" style="margin-top:10px;max-width:420px">
-          <div id="bench-bar" class="progress-fill" style="width:0%"></div>
-        </div>
-        <div class="mono" style="font-size:10px;color:var(--fg-muted);margin-top:6px"
-             data-bind="bench_etapa"></div>
-
-        <button id="bench-btn" class="btn-primary" style="width:320px;margin-top:8px"
-                onclick="window.runBench()">INICIAR BENCHMARK</button>
-        <div class="mono" style="font-size:10px;color:var(--fg-muted)"
-             data-bind="bench_dica">Leva alguns segundos. Feche outros programas para um resultado mais fiel.</div>
-      </div>
-
-      <div id="bench-resultado" style="display:none">
-        <div class="card" style="margin-bottom:14px">
-          <div class="label" style="margin-bottom:12px">RESULTADOS</div>
-          <div id="bench-linhas"></div>
-        </div>
-
-        <div id="bench-comparacao" class="card" style="display:none;
-             border-left:3px solid var(--cyan)">
-          <div class="label" style="margin-bottom:8px">COMPARADO COM A ÚLTIMA MEDIÇÃO</div>
-          <div id="bench-delta" style="font-size:11px;line-height:1.7;color:var(--fg-secondary)"></div>
-        </div>
-      </div>
     </section>
 
     <!-- ─────────── DEBLOAT ─────────── -->
