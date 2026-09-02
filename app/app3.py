@@ -3357,7 +3357,24 @@ class TecnoApp(QMainWindow):
             self.show_gamer()
 
         if action == "activate" and report.reboot_required:
-            self.show_reboot_modal(report)
+            # So pede reboot se ainda nao foi feito para estes tweaks.
+            # Sem essa checagem o modal reaparecia a cada ativacao, mesmo
+            # o usuario tendo acabado de reiniciar.
+            try:
+                from reboot import reboot_already_done
+                pendente = not reboot_already_done()
+            except Exception:
+                pendente = True
+            if pendente:
+                self.show_reboot_modal(report)
+
+        # Desativar zera a marca: a proxima ativacao precisa de reboot de novo
+        if action == "deactivate":
+            try:
+                from reboot import clear_reboot_done
+                clear_reboot_done()
+            except Exception:
+                pass
 
     def show_reboot_modal(self, report):
         """

@@ -856,6 +856,35 @@ class Bridge(QObject):
             pass
 
     # ── Reboot ──────────────────────────────────────────────────
+    @Slot(result="QVariant")
+    def getGamerState(self):
+        """
+        Estado do Modo Gamer na abertura.
+
+        O front usa para, ao voltar do reboot, mostrar que os tweaks estao
+        ativos em vez de pedir ativacao de novo.
+        """
+        out = {"active": False, "post_reboot": False}
+        try:
+            from reboot import came_from_reboot, mark_reboot_done
+            veio = came_from_reboot() == "gamer"
+            out["post_reboot"] = veio
+            if veio:
+                # Registra que o reboot foi cumprido, senao o modal
+                # reapareceria na proxima ativacao.
+                mark_reboot_done()
+        except Exception:
+            pass
+        try:
+            eng = getattr(self._main, "gamer_engine", None)
+            if eng is None:
+                from gamer.facade import build_engine
+                eng = build_engine()
+            out["active"] = bool(eng.is_active())
+        except Exception:
+            pass
+        return out
+
     @Slot(result=str)
     def getPostRebootFlag(self):
         """

@@ -1731,9 +1731,20 @@
     // que foi o motivo de reiniciar.
     if (window.bridge && window.bridge.getPostRebootFlag) {
       window.bridge.getPostRebootFlag(function (flag) {
-        if (flag === 'gamer') {
-          navigate('gamer');
-          setBind('gamer_status', 'PC reiniciado — tweaks de reboot agora ativos.');
+        if (flag !== 'gamer') return;
+        navigate('gamer');
+        // Confirma o estado real em vez de so anunciar: se o Modo Gamer
+        // continua ativo, os tweaks de reboot valem a partir de agora.
+        if (window.bridge.getGamerState) {
+          window.bridge.getGamerState(function (st) {
+            if (st && st.active) {
+              if (window.setGamerMode) window.setGamerMode(true);
+              setBind('gamer_status',
+                'PC reiniciado — Modo Gamer ativo e tweaks de reboot valendo.');
+            } else {
+              setBind('gamer_status', 'PC reiniciado.');
+            }
+          });
         }
       });
     }

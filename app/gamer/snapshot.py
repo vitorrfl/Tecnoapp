@@ -27,6 +27,16 @@ def history_dir() -> Path:
     return path
 
 
+def reboot_done_path() -> Path:
+    """
+    Marca que o reboot exigido pelos tweaks ativos ja foi cumprido.
+
+    Sem isso o app pedia reinicializacao a cada abertura com o Modo Gamer
+    ativo, mesmo o usuario tendo acabado de reiniciar.
+    """
+    return appdata_dir() / "reboot_done.flag"
+
+
 def active_pointer_path() -> Path:
     return appdata_dir() / "active_snapshot.json"
 

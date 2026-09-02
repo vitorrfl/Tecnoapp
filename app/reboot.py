@@ -119,3 +119,39 @@ def came_from_update() -> bool:
     rodando, em vez de a atualizacao terminar em silencio.
     """
     return "--pos-update" in sys.argv[1:]
+
+
+def mark_reboot_done() -> bool:
+    """Registra que o reboot pedido pelo Modo Gamer ja aconteceu."""
+    try:
+        from gamer.snapshot import reboot_done_path
+        p = reboot_done_path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("done", encoding="utf-8")
+        return True
+    except Exception:
+        return False
+
+
+def reboot_already_done() -> bool:
+    """True se o reboot ja foi cumprido para os tweaks ativos."""
+    try:
+        from gamer.snapshot import reboot_done_path
+        return reboot_done_path().exists()
+    except Exception:
+        return False
+
+
+def clear_reboot_done() -> bool:
+    """
+    Limpa a marca. Chamado ao desativar o Modo Gamer: a proxima ativacao
+    volta a exigir reboot para os tweaks que precisam dele.
+    """
+    try:
+        from gamer.snapshot import reboot_done_path
+        p = reboot_done_path()
+        if p.exists():
+            p.unlink()
+        return True
+    except Exception:
+        return False
