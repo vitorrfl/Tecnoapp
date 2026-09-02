@@ -527,13 +527,28 @@ class Bridge(QObject):
             return
         self._checker = UpdateChecker()
         self._checker.update_available.connect(self._on_update_available)
+        self._checker.update_critical.connect(self._on_update_critical)
         self._checker.up_to_date.connect(
             lambda: (self.updateStatus.emit("Voce esta na versao mais recente."),
                      self._js("onUpdateStatus", "Voce esta na versao mais recente.")))
         self._checker.check_failed.connect(
             lambda why: (self.updateStatus.emit(f"Nao foi possivel checar ({why})."),
-                         self._js("onUpdateStatus", f"Nao foi possivel checar ({why})."))) 
+                         self._js("onUpdateOffline", str(why))))
         self._checker.start()
+
+    def _on_update_critical(self, ver, notes, url, size):
+        """
+        Atualizacao obrigatoria: o app fica bloqueado ate ser instalada.
+
+        Guarda os mesmos dados de uma atualizacao normal, mas avisa o
+        front para exibir a tela de bloqueio em vez do banner.
+        """
+        self._update_info = {
+            "version": ver, "notes": notes, "url": url,
+            "size": size, "critical": True,
+        }
+        self.updateAvailable.emit(self._update_info)
+        self._js("onUpdateCritical", self._update_info)
 
     def _on_update_available(self, ver, notes, url, size):
         self._update_info = {"version": ver, "notes": notes, "url": url, "size": size}
@@ -846,6 +861,7 @@ class Bridge(QObject):
     _LINKS = {
         "site": "https://tecnosup-site.web.app/",
         "instagram": "https://www.instagram.com/tecnosuporte/",
+        "github": "https://github.com/vitorrfl/Tecnoapp/releases/latest",
     }
 
     @Slot(str)

@@ -138,3 +138,24 @@ risco (APIs de kernel, drivers).
   do Modo Gamer gerou BSOD (kernel / MEMORY_MANAGEMENT). `NtSetSystemInformation`
   pode colidir com drivers em certos sistemas. Tweak marcado como `opt_in`
   e só roda se habilitado na tela Avançado.
+
+## Atualizações obrigatórias
+
+Por padrão as atualizações são opcionais: o app avisa e o usuário decide.
+
+Para tornar uma versão obrigatória, inclua `[CRITICO]` em qualquer lugar
+das notas da release no GitHub. Versões anteriores passam a exibir uma tela
+de bloqueio e só voltam a funcionar após atualizar.
+
+A marca é lida do corpo da release, então não exige nada além do que o
+GitHub já oferece — e basta uma versão intermediária estar marcada para que
+quem estiver atrás dela seja bloqueado, mesmo que a mais recente não esteja.
+
+Sem internet o app **abre normalmente**, com um aviso discreto de que não foi
+possível verificar. Não poder checar não é o mesmo que estar desatualizado.
+
+### Pendente: versão para técnicos
+
+Está previsto um build específico para técnicos, capaz de contornar o
+bloqueio ao atender máquinas sem internet ou atrás de firewall restritivo.
+O ponto de entrada é a checagem em `UpdateChecker.run()` (`app/updater.py`).

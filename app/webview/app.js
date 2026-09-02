@@ -211,6 +211,56 @@
     }
   };
 
+
+  // -- Atualizacao critica --------------------------------------
+  // Bloqueia o app ate atualizar. So dispara quando a release traz
+  // [CRITICO] nas notas — o padrao continua sendo so avisar.
+  window.onUpdateCritical = function (info) {
+    if (!info) return;
+    updateInfo = info;
+    updatePending = true;
+
+    const box = document.getElementById('update-block');
+    if (!box) return;
+
+    const notas = document.getElementById('block-notes');
+    if (notas) {
+      const txt = String(info.notes || '').replace(/[#>*`]/g, '')
+                    .replace(/\[CRITICO\]/gi, '').trim();
+      notas.textContent = txt || 'Correção importante disponível.';
+    }
+
+    const btn = document.getElementById('block-btn');
+    if (btn) {
+      const mb = info.size ? ' (' + (info.size / (1024 * 1024)).toFixed(0) + ' MB)' : '';
+      btn.textContent = 'ATUALIZAR AGORA' + mb;
+    }
+
+    box.style.display = 'flex';
+    // Some com o banner e o botao da sidebar: aqui nao ha escolha a fazer.
+    const b = document.getElementById('update-banner');
+    if (b) b.style.display = 'none';
+    const sb = document.getElementById('sidebar-update');
+    if (sb) sb.style.display = 'none';
+  };
+
+  // O progresso do download aparece na propria tela de bloqueio
+  window.onUpdateBlockProgress = function (pct) {
+    const s = document.getElementById('block-status');
+    if (s) s.textContent = 'Baixando... ' + pct + '%';
+  };
+
+  // Sem internet o app abre normalmente: nao poder verificar nao e o
+  // mesmo que estar desatualizado. Um tecnico pode estar num PC sem rede.
+  window.onUpdateOffline = function (motivo) {
+    setBind('clean_status', '');
+    const el = document.getElementById('offline-aviso');
+    if (el) {
+      el.style.display = 'flex';
+      el.title = 'Motivo: ' + motivo;
+    }
+  };
+
   // -- Modal de reboot ------------------------------------------
   window.onAskReboot = function (tweaks) {
     const lista = (tweaks && tweaks.length)
@@ -827,6 +877,7 @@
   };
 
   function onUpdateProgress(pct) {
+    if (window.onUpdateBlockProgress) window.onUpdateBlockProgress(pct);
     const el = document.getElementById('update-pct');
     if (el) el.textContent = pct + '%';
   }

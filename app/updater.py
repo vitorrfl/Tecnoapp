@@ -74,6 +74,18 @@ def is_newer(remote: str, local: str = APP_VERSION) -> bool:
 
 
 
+
+# Marca que torna uma atualizacao obrigatoria. Fica nas notas da release,
+# entao nao exige nada alem do que o GitHub ja oferece.
+_MARCA_CRITICA = "[CRITICO]"
+
+
+def e_critica(release: dict) -> bool:
+    """True se a release exige atualizacao para continuar usando o app."""
+    corpo = (release or {}).get("body") or ""
+    return _MARCA_CRITICA.upper() in corpo.upper()
+
+
 def _juntar_notas(releases: list) -> str:
     """
     Junta as notas de todas as versoes pendentes, da mais nova para a mais
@@ -102,6 +114,9 @@ class UpdateChecker(QThread):
 
     # (versao, notas, url_download, tamanho_bytes)
     update_available = Signal(str, str, str, int)
+    # (versao, notas, url, tamanho) — release marcada como [CRITICO]:
+    # as versoes anteriores param de funcionar ate atualizar.
+    update_critical = Signal(str, str, str, int)
     up_to_date = Signal()
     check_failed = Signal(str)
 
@@ -154,7 +169,15 @@ class UpdateChecker(QThread):
                 return
 
             notas = _juntar_notas(pendentes)
-            self.update_available.emit(tag.lstrip("vV"), notas, url, size)
+            versao = tag.lstrip("vV")
+
+            # Basta UMA das versoes puladas ser critica: quem esta atras
+            # dela nao pode continuar usando, mesmo que a mais recente
+            # nao esteja marcada.
+            if any(e_critica(r) for r in pendentes):
+                self.update_critical.emit(versao, notas, url, size)
+            else:
+                self.update_available.emit(versao, notas, url, size)
         except Exception as e:
             self.check_failed.emit(f"{type(e).__name__}")
 

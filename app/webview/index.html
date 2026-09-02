@@ -144,6 +144,47 @@
 
 </div>
 
+<!-- Bloqueio por atualizacao critica: cobre o app inteiro ate atualizar.
+     So aparece quando a release traz [CRITICO] nas notas. -->
+<div id="update-block" style="display:none;position:fixed;inset:0;z-index:20002;
+     background:#030407;flex-direction:column;align-items:center;
+     justify-content:center;padding:32px;text-align:center">
+
+  <img src="assets/logo.png" alt="Tecnosup"
+       style="width:190px;max-width:45vw;opacity:.95;margin-bottom:26px">
+
+  <div style="font-size:10px;font-weight:700;color:#e8a33d;letter-spacing:1px;
+              margin-bottom:10px">ATUALIZAÇÃO OBRIGATÓRIA</div>
+
+  <div style="font-size:17px;font-weight:700;color:#e8ecf1;margin-bottom:8px">
+    Atualize para continuar usando
+  </div>
+
+  <div style="font-size:11px;color:#8b93a1;line-height:1.6;max-width:440px;
+              margin-bottom:20px">
+    Esta versão do TecnoApp foi substituída por uma correção importante e não
+    deve mais ser usada. A atualização é rápida e mantém suas configurações.
+  </div>
+
+  <div id="block-notes" style="max-width:min(90vw,480px);max-height:26vh;
+       overflow-y:auto;border:1px solid rgba(255,255,255,.07);border-radius:8px;
+       background:rgba(255,255,255,.02);padding:12px 16px;margin-bottom:20px;
+       font-size:11px;color:#8b93a1;line-height:1.6;white-space:pre-wrap;
+       text-align:left"></div>
+
+  <button id="block-btn" class="btn-primary" style="width:300px"
+          onclick="window.startUpdate()">ATUALIZAR AGORA</button>
+
+  <div id="block-status" class="mono"
+       style="font-size:10px;color:#5a6472;margin-top:12px;min-height:14px"></div>
+
+  <div style="font-size:10px;color:#39414d;margin-top:20px">
+    Problemas para atualizar? Baixe em
+    <span style="color:#0eb3ff;cursor:pointer"
+          onclick="window.bridge?.abrirLink?.('github')">github.com/vitorrfl/Tecnoapp</span>
+  </div>
+</div>
+
 <div class="app">
 
   <!-- ─────────── SIDEBAR ─────────── -->
@@ -205,6 +246,15 @@
 
     <!-- Versao e contato na mesma linha: em linha propria os icones
          empurravam SAIR e Ponto de Restauracao para cima. -->
+    <!-- Aparece so quando nao foi possivel checar atualizacoes -->
+    <div id="offline-aviso" style="display:none;align-items:center;gap:6px;
+         font-size:9px;color:#5a6472;margin-bottom:6px;cursor:default">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round"><path d="M12 9v4"/><path d="M12 17h.01"/>
+           <circle cx="12" cy="12" r="10"/></svg>
+      <span>sem verificação de atualizações</span>
+    </div>
+
     <div class="sidebar-footer">
       <span class="version-tag" style="margin:0">v 1.0 · Tecnosup</span>
       <span style="display:flex;gap:2px">
