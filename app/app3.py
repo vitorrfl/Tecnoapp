@@ -1040,7 +1040,25 @@ class TecnoApp(QMainWindow):
         if web_mode:
             self.show_web()
         else:
+
+
             self.show_home()
+
+        # Bandeja do sistema: fechar no X mantem o app rodando ao lado do
+        # relogio. Pedido por usuarios que deixam o Modo Gamer ligado.
+        self._tray = None
+        self._sair_de_verdade = False
+        try:
+            from tray import TrayIcon
+            self._tray = TrayIcon(self, engine_getter=lambda: self.gamer_engine)
+            if self._tray.montar():
+                self._tray.mostrar_pedido.connect(self._restaurar_da_bandeja)
+                self._tray.sair_pedido.connect(self._sair_pela_bandeja)
+                self._tray.gamer_toggle.connect(self._gamer_pela_bandeja)
+            else:
+                self._tray = None
+        except Exception:
+            self._tray = None
 
     def show_web(self):
         """Substitui toda a área de conteúdo pelo WebView (PoC pixel-perfect)."""
@@ -3356,6 +3374,13 @@ class TecnoApp(QMainWindow):
         else:
             self.show_gamer()
 
+        # Mantem o menu da bandeja em sincronia com o estado real
+        if getattr(self, "_tray", None) is not None:
+            try:
+                self._tray.atualizar_estado()
+            except Exception:
+                pass
+
         if action == "activate" and report.reboot_required:
             # So pede reboot se ainda nao foi feito para estes tweaks.
             # Sem essa checagem o modal reaparecia a cada ativacao, mesmo
@@ -3375,6 +3400,56 @@ class TecnoApp(QMainWindow):
                 clear_reboot_done()
             except Exception:
                 pass
+
+    def closeEvent(self, event):
+        """
+        Fechar no X esconde na bandeja em vez de encerrar.
+
+        Sao acoes diferentes: fechar a janela e reversivel, SAIR e
+        definitivo. Sem bandeja disponivel, fecha normalmente.
+        """
+        if self._sair_de_verdade or self._tray is None:
+            if self._tray is not None:
+                self._tray.esconder()
+            event.accept()
+            return
+
+        event.ignore()
+        self.hide()
+        self._tray.atualizar_estado()
+
+        # Avisa uma vez so: repetir a cada fechamento vira incomodo.
+        if not getattr(self, "_avisou_bandeja", False):
+            self._avisou_bandeja = True
+            self._tray.avisar(
+                "TecnoApp continua rodando",
+                "O app foi minimizado para a bandeja. Clique no ícone para abrir."
+            )
+
+    def _restaurar_da_bandeja(self):
+        self.showNormal()
+        self.raise_()
+        self.activateWindow()
+
+    def _sair_pela_bandeja(self):
+        self._sair_de_verdade = True
+        self.close()
+
+    def _gamer_pela_bandeja(self, ativar: bool):
+        """
+        Liga/desliga o Modo Gamer pelo menu da bandeja.
+
+        Restaura a janela antes: o processo mostra progresso e pode abrir
+        o modal de reboot, que precisam de janela visivel.
+        """
+        self._restaurar_da_bandeja()
+        try:
+            if ativar:
+                self.run_gamer_activate()
+            else:
+                self.run_gamer_deactivate()
+        except Exception:
+            pass
 
     def show_reboot_modal(self, report):
         """

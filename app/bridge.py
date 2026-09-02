@@ -385,7 +385,12 @@ class Bridge(QObject):
 
     @Slot()
     def exitApp(self):
+        # SAIR encerra de fato; so o X minimiza para a bandeja.
         if self._main:
+            try:
+                self._main._sair_de_verdade = True
+            except Exception:
+                pass
             self._main.close()
 
     # ── Limpeza ─────────────────────────────────────────────────
