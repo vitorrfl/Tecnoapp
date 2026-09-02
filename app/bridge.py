@@ -81,6 +81,7 @@ class Bridge(QObject):
         self._clean_total = 0
         self._repair_worker = None
         self._deep_worker = None
+        self._bench_worker = None
         self._optimize_worker = None
         self._bloat: dict | None = None
         self._bloat_scanner = None
@@ -839,6 +840,68 @@ class Bridge(QObject):
             return bool(came_from_update())
         except Exception:
             return False
+
+    # ── Benchmark ───────────────────────────────────────────────
+    @Slot(bool)
+    def runBenchmark(self, completo=True):
+        """Roda o benchmark em thread propria; a UI acompanha por push."""
+        if self._bench_worker is not None and self._bench_worker.isRunning():
+            return
+        try:
+            from benchmark import BenchmarkWorker
+        except Exception as e:
+            self._js("onBenchFailed", f"{type(e).__name__}")
+            return
+
+        self._bench_worker = BenchmarkWorker(completo=bool(completo))
+        self._bench_worker.etapa.connect(
+            lambda txt, pct: self._js("onBenchStep", str(txt), int(pct)))
+        self._bench_worker.concluido.connect(self._on_bench_done)
+        self._bench_worker.falhou.connect(
+            lambda e: self._js("onBenchFailed", str(e)))
+        self._bench_worker.start()
+
+    def _on_bench_done(self, r):
+        resultado = dict(r or {})
+        w = self._bench_worker
+        self._bench_worker = None
+        if w is not None:
+            try:
+                w.wait(); w.deleteLater()
+            except Exception:
+                pass
+
+        # Guarda para comparar com a proxima execucao: e nisso que esta o
+        # valor do benchmark, nao no numero isolado.
+        try:
+            import json
+            from gamer.snapshot import appdata_dir
+            p = appdata_dir() / "benchmark_ultimo.json"
+            anterior = None
+            if p.exists():
+                try:
+                    anterior = json.loads(p.read_text(encoding="utf-8"))
+                except Exception:
+                    anterior = None
+            resultado["anterior"] = anterior
+
+            p.parent.mkdir(parents=True, exist_ok=True)
+            salvar = {k: v for k, v in resultado.items() if k != "anterior"}
+            try:
+                from gamer.facade import build_engine
+                eng = getattr(self._main, "gamer_engine", None) or build_engine()
+                salvar["gamer_ativo"] = bool(eng.is_active())
+            except Exception:
+                salvar["gamer_ativo"] = False
+            from datetime import datetime
+            salvar["quando"] = datetime.now().strftime("%d/%m/%Y as %H:%M")
+            p.write_text(json.dumps(salvar, ensure_ascii=False, indent=2),
+                         encoding="utf-8")
+            resultado["gamer_ativo"] = salvar["gamer_ativo"]
+        except Exception:
+            pass
+
+        self._js("onBenchDone", resultado)
 
     # ── Contato ─────────────────────────────────────────────────
     # Allowlist: o JS manda um apelido, nao uma URL. Assim nao ha como uma
